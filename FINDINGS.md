@@ -540,3 +540,33 @@ The `llms` test compared committed output with a fresh generation from the same 
 - No runbook yet documents the post-publish step.
 - Findings F8 to F11 are unchanged (see FINAL-REPORT.md).
 - The stop hook's uncommitted-changes reports came from sandbox copies, not the repositories.
+
+## Update 25: SDK and verifier 2.0.0 published; docs updated
+
+Date: 2026-11-07.
+
+### Published
+
+- `@parmana/sdk` 2.0.0 on npm and `parmana` 2.0.0 on PyPI (the TypeScript and Python SDKs).
+- `@parmana/verifier` 2.0.0 on npm and `parmana-verifier` 2.0.0 on PyPI.
+- `parmana-connector-sdk` 2.0.0 on PyPI.
+- Not published: `@parmana/connector-sdk` on npm, which is still 1.6.3.
+
+### Recording the published versions
+
+- `npm run record:published-sdk` refused 2.0.0 on Windows even after npm had it. The check ran `npm` through `execFileSync`, which cannot start `npm.cmd` on Windows, so every version looked unpublished. The fix runs the same `npm view` command through a shell. The version strings are validated before use. Tested on Linux: 2.0.0 accepted, 2.0.1 refused.
+- The SDK install table in `choose-your-path.mdx` and the generated `llms.txt` and `llms-full.txt` now name 2.0.0.
+
+### Docs updated for 2.0.0
+
+- `sdks/typescript.mdx` and `sdks/python.mdx`: the current-version statements now describe 2.0.0. The offline verifier verifies hybrid records in full, including the schema version 3 whole-record message, and reports `coverage` and `hybridSignaturesValid`. ML-DSA-65 needs Node 24 with OpenSSL 3.5, or `cryptography` 47.0.0 in Python. Python execution models accept an optional `evaluation_method`.
+- `build-book/overview.mdx`: the published SDK versions.
+- `verification/offline-verifier.mdx`: the standalone verifier is 2.0.0. It is a breaking release: schema version 2 records, and records with no `schemaVersion`, are refused unless `allowLegacyV2` is set.
+- The SDK code claim "changes no SDK code" is removed for 2.0.0, because the offline verifier changed in both SDKs. It stays accurate for 1.6.3.
+
+### Open
+
+- No `verifier-v2.0.0` or `sdk-v2.0.0` release tag exists yet. The 1.6.3 pages cited tags for provenance.
+- `security/overview.mdx` still describes the `sdk-v1.6.3` release provenance. That is accurate for 1.6.3, but nothing yet covers 2.0.0.
+- `@parmana/connector-sdk` on npm is 1.6.3 while the other packages are 2.0.0. Decide whether to publish it at 2.0.0.
+- The findings from Update 24 (F8 to F11) are unchanged.
