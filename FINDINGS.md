@@ -216,3 +216,37 @@ I applied the repo's own `scripts/apply-all-migrations.sql` to a local Postgres 
 - **emSign ECC Root CA - G3 verified.** Downloaded from `https://repository.emsign.com/certs/emSignECCRootCAG3.crt` (the URL in Mozilla bug 1515457). Subject `CN=emSign ECC Root CA - G3, O=eMudhra Technologies Limited, OU=emSign PKI, C=IN`. SHA-256 `86:A1:EC:BA:08:9C:4A:8D:3B:BE:27:34:C6:12:BA:34:1D:81:3E:04:3C:F9:E8:A8:62:CD:5C:57:A3:6B:BE:6B`, which matches the list entry.
 - **G1 `40:F6:…` settled as a real root.** Mozilla bug 1515457 lists emSign Root CA - G1 with SHA-256 `40F6AF0346A99AA1CD1D555A4E9CCE62C7F9634603EE406615833DC8C8D00367`, so it is the root Mozilla trusts. eMudhra says G1 remains active, so it is not a compromise and is not on the distrust list in the narrowing branch (`fix/narrow-distrust-to-g3`).
 - **Verification still open:** C1 and C3 are not checked against the repository (they are out of scope under the narrowing change). The NSS and Apple claims about C1, C3 and G3 still need a primary source.
+
+## Update 11: scope narrowed to G3 (supersedes the F6 list in Updates 5 to 10)
+
+### What eMudhra's statement says
+
+- Source: eMudhra, "Statement on Recent Certificate Security Incident" (updates 1 to 8, last updated 5 November 2026, at `emudhra.com/en/post/certificate-security-incident`).
+- The compromise: the keys of eight intermediate CAs under the **ECC root** (emSign ECC Root CA - G3) were weak. The intermediates were revoked, and the root programs distrusted that root.
+- G1: "Our G1 root certificates remain active and continue to be fully supported." Browser phase-out of G1-chained TLS certificates is for policy reasons (Chrome and Firefox on 16 November 2026, Apple on 30 November 2026), not a compromise.
+- C1 and C3: the statement says the Mozilla removal is "voluntary and planned" and "does not pertain to this security incident."
+- Digital signature, eSign, emSigner, CertiNext, emCA, PrivaTrust and SecurePass are not affected.
+
+### What the code now does
+
+- `DISTRUSTED_ROOT_FINGERPRINTS` lists only **emSign ECC Root CA - G3**. The G1 entries (`2D:3A:…` and `40:F6:…`) and the C1 and C3 entries are removed.
+- Verified: the certificate from `https://repository.emsign.com/certs/emSignECCRootCAG3.crt` has subject `CN=emSign ECC Root CA - G3, O=eMudhra Technologies Limited, OU=emSign PKI, C=IN` and SHA-256 `86:A1:EC:BA:08:9C:4A:8D:3B:BE:27:34:C6:12:BA:34:1D:81:3E:04:3C:F9:E8:A8:62:CD:5C:57:A3:6B:BE:6B`. This matches the list.
+- PR: `parmana-core` #497, `fix/narrow-distrust-to-g3`. Open. DCO and CI are pending on the new commit, and one approval is needed.
+
+### Behavior change
+
+- On Node builds that bundle `emSign Root CA - G1`, the server will trust G1 again. The previous list removed it. This follows from eMudhra's statement. It needs owner confirmation before merge; the PR description asks for it.
+- Official Node builds checked so far (22.23.4, 24.22.1, 24.22.2) do not bundle G3. On those builds the change removes nothing, and the startup line reports `distrustedRootsBundled: 0`.
+
+### Status of the earlier open items
+
+- **`40:F6:…` G1:** settled. Mozilla bug 1515457 lists it as the emSign Root CA - G1 certificate Mozilla trusts, so it is real. It is no longer on the list, because G1 is not compromised.
+- **Other fingerprints:** the G1 and G3 values match the Mozilla bug. C1 (`12:56:09:…:8F`) and C3 (`BC:4D:80:…:B3`) are unchecked against eMudhra's repository, and they are no longer on the list.
+- **NSS and Apple claims:** the Mozilla bug and the eMudhra statement both mention removal of roots and dates. The specific claim that NSS 3.131.1 removes C1, C3 and G3 is only partly supported: eMudhra says the NSS update removes the root behind the affected intermediates (G3), and that the C1 and C3 removals are planned. The Apple G3 blocking date (23 October) came from a secondary search result and is not confirmed.
+
+### Still open
+
+- Confirm the intended G1 behavior and approve or change PR #497.
+- DCO and CI on PR #497.
+- Verify C1 and C3 against eMudhra's repository, if they are ever re-added.
+- Primary-source confirmation of the NSS 3.131.1 and Apple dates.
