@@ -385,3 +385,39 @@ Source: Google, "Protecting Chrome and Android users from compromised eMudhra in
 
 - Chrome and Mozilla are still evaluating eMudhra's other roots. This doesn't affect this repository unless one of those roots is re-added.
 - `parmana-verifier` and `parmana-connect` have no open findings.
+
+## Update 18: cross-repository review pass
+
+Baseline (main branches, checked 7 November 2026): parmana-core `1180d97` (updated: includes PR #497), parmana-verifier `707f4ad`, parmana-connect `6966444`, parmana-connectors `10b78fa`.
+
+### Core: execution path traced
+
+- The runtime's `ExecutionComponent` calls `executionSystem.execute(request)`. `createExecutionGateway` returns the `ExecutionGateway` itself, so the release reaches `ExecutionGateway.execute`, which verifies before dispatch.
+- `RuntimeEngine` has no direct connector call. Connector calls are made only in `ExecutionControlService` and the `SecureConnector` executors, which the gateway calls after its checks.
+- Result: no route reaches a connector without the gateway's verification. Checked from source; not exercised with a live request.
+
+### Verifier: parity
+
+- JavaScript suite: 68 of 68 pass (Node 24.22.1), including `test/vectors.test.mjs`, `whole-record.test.mjs` and `agentrust-fixture.test.mjs`.
+- Python suite: 45 of 45 pass (`python -m pytest`, Python 3.x with `cryptography`). `python/tests/test_verifier.py` also uses the shared vectors.
+- Limitation: both suites reference the same vectors, and both pass. I did not diff their outputs field by field, so this is parity on the shared vectors, not a proof of identical behaviour elsewhere.
+
+### Connect: release and authorization paths
+
+- External-release path (`src/external-release.ts`, `src/execution-service.ts` around lines 89 to 115): signature, audience, capability and expiry are checked; the ledger claim follows; the connector runs only after the claim. Correct order.
+- Authorization path (`src/execution-service.ts` around lines 190 to 208): `verifier.verify(request.authorization)` runs first. That method (in `@parmana/envelope-verifier`, `EnvelopeVerifier.verify`) consumes the nonce once signature, expiry and TTL pass. The business transaction hash is checked afterwards.
+- Storage defaults: `parseNonceStore` returns `postgres` unless `PARMANA_NONCE_STORE=memory` is set. `main.ts` uses Postgres for the nonce store and the release ledger in that default. The in-memory fallback applies only when the library is embedded without a store.
+
+### New finding
+
+**F7. Connect consumes an authorization's nonce before checking the transaction hash (low to medium, availability only).**
+- Scenario: an attacker who observes a valid, unexpired authorization envelope sends a request that reuses it with altered parameters. The signature check passes, so the nonce is consumed. The hash check then rejects the request. The legitimate request, which uses the same authorization, is refused as a replay.
+- Impact: denial of service for that one authorization. No unauthorized execution: the ledger claim comes after the hash check, and the connector never runs for a mismatched request.
+- Core does not have this ordering problem. `ExecutionGateway.verify` checks the hash first and consumes the nonce last, and the `EnvelopeVerifier` documentation warns against exactly this.
+- Recommended fix (in parmana-connect, needs a PR): call `verifier.verifyChecks`, then the hash check, then `verifier.consumeNonce`. Add a test that a tampered request with a valid envelope leaves the nonce unused.
+
+### Status
+
+- F1 to F6 unchanged (see Update 17).
+- F7 open, pending a fix in parmana-connect.
+- Still not reviewed in depth: parmana-connectors' adapter layer beyond the release path and the Razorpay refund flow; the Paytm staging and Razorpay live-key claims; credential handling in connectors.
