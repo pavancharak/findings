@@ -476,3 +476,11 @@ Can a third party verify evidence without trusting the Parmana runtime or databa
 - Read the Python verifier line by line, including its trust resolution.
 - Decide whether v2 records should be refused by default, or the default changed to v3.
 - Establish how the trust file is distributed and verified.
+
+## Update 21: verifier schema version 2 refused by default
+
+- **Finding (from Update 20):** a record with no `schemaVersion`, or with `schemaVersion` 2, signs only seven top-level fields. The verifier accepted such records by default, reporting only `coverage: "legacy"`.
+- **Fix:** `parmana-verifier` PR #36 (`fix/verifier-v2-opt-in`, signed commit `9ae562c`). Both verifiers refuse these records unless `allowLegacyV2` (Python: `allow_legacy_v2`) is set, in code or in the trust file. The CLI reads the same field. Breaking change.
+- **Tests:** JavaScript 72 of 72, examples 9 of 9, Python 49 of 49, including new tests for the refusal, the opt-in and trust-file validation.
+- **Version:** not bumped. The release version is a decision for the owner, because the package versions are aligned with the SDK packages.
+- **Status:** fixed in code, open pending DCO, CI and review.
