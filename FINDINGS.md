@@ -261,3 +261,21 @@ I applied the repo's own `scripts/apply-all-migrations.sql` to a local Postgres 
 
 - C1 and C3 against eMudhra's repository, if they are ever re-added.
 - Primary-source confirmation of the NSS 3.131.1 and Apple dates.
+
+## Update 13: NSS, Apple and Chrome dates
+
+Sources checked from this sandbox. Where a page could not be opened, the result is recorded as unverified.
+
+- **Mozilla NSS 3.131.1 (20 October 2026), per the Firefox Source Docs release notes** (`https://firefox-source-docs.mozilla.org/security/nss/releases/nss_3_131_1.html`). Seen in a search result only; the page itself was not reachable from this sandbox.
+  - Bug 2084101: "Remove eMudhra emSign Root CA - G3 from NSS."
+  - Bug 2083709: "Remove eMudhra emSign Root CA - C1 and emSign ECC Root CA - C3 from NSS."
+  - This confirms the G3 removal. It also confirms that C1 and C3 were removed from NSS in the same release. eMudhra's statement calls the C1 and C3 removal "voluntary and planned" and says it does not relate to the incident. Both can hold: the removal was planned, and it shipped in the same release.
+- **Mozilla mailing list (`https://groups.google.com/a/mozilla.org/g/dev-tech-crypto/c/vSxZxnOMMvs`)**, per a search result: ties the G3 removal to the incident and says Firefox users were covered by an earlier OneCRL update. Not opened directly.
+- **Apple (`https://support.apple.com/en-us/149555`)**: could not be opened. The earlier claim that Apple began blocking G3 on 23 October 2026 is unverified. eMudhra's statement gives a different date for Apple's G1 removal: 30 November 2026.
+- **Chrome**: secondary sources give conflicting timing for the G3 removal, so no date is recorded here as fact.
+
+### Still open
+
+- Open the NSS 3.131.1 release notes and confirm the two bug entries.
+- Confirm Apple's G3 date from Apple's page, and Chrome's date from Chrome's root program announcements.
+- C1 and C3 against eMudhra's repository, if they are ever re-added.
