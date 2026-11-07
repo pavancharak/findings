@@ -421,3 +421,26 @@ Baseline (main branches, checked 7 November 2026): parmana-core `1180d97` (updat
 - F1 to F6 unchanged (see Update 17).
 - F7 open, pending a fix in parmana-connect.
 - Still not reviewed in depth: parmana-connectors' adapter layer beyond the release path and the Razorpay refund flow; the Paytm staging and Razorpay live-key claims; credential handling in connectors.
+
+## Update 19: execution gateway function-level review
+
+Checked against `parmana-core` `origin/main` (1180d97 or later; `ExecutionGateway.ts`, `createReleaseVerifier.ts`, `createSessionStore.ts`, `createExecutionControl.ts`, `ConnectorAuthenticator.ts`).
+
+### Claims from the external review, verified
+
+1. **Nonce consumed before the outcome is recorded (direct path).** Confirmed. `verify()` consumes the nonce when no execution control is configured, and `execute()` records the outcome with `begin()` only afterwards. If `begin()` fails, the connector has not run, but the nonce stays consumed with no outcome row. A retry then returns "outcome unknown" instead of executing. No double execution; the authorization is stuck until an operator intervenes. Severity: low to medium (recoverability). Not fixed.
+2. **Production session store is process-local.** Confirmed. `createExecutionControl` uses `createSessionStore()`, which returns an `InMemoryGatewaySessionStore`. Sessions are not shared across instances. This matches an in-process design. It needs confirming that a session is always consumed by the instance that issued it.
+3. **Gateway attestation uses object identity.** Confirmed. `ConnectorAuthenticator` compares with `===`. That is sound for an in-process object and is not a cross-process credential.
+4. **Policy repository errors reported as "policy not found".** Confirmed. Any exception from `policyRepository.load` (including a database outage) sets `policyStillCurrent = false` with `actual: "policy not found"`. It fails closed, but operational errors are indistinguishable from a missing policy. Low severity (diagnostics).
+5. **Createreleaseverifier.ts (93 lines), read in full.** The release boundary: resolves the verification key by `keyId`; verifies signature, expiry and version; requires `APPROVED`; recomputes the executable-content hash and compares it with `businessTransactionHash`; consumes the nonce last and throws `NonceAlreadyConsumedError` on replay. It binds the released content to the signed transaction. Good.
+
+### New observation
+
+**The second enforcement boundary is narrower than the first.** `createReleaseVerifier` and `ExecutionControlService` do not check revocation, authority grants, policy hash, or signals. Those checks are only in `ExecutionGateway.verify()`. The second boundary's protection depends on the gateway attestation: a caller that holds the attestation and reaches `ExecutionControlService.execute()` directly would skip those checks. Whether any caller can do this in production has not been verified; it needs a trace of who holds the attestation. Severity: medium, pending that trace.
+
+### Open items
+
+- Trace who can obtain the gateway attestation and call `ExecutionControlService.execute()` directly.
+- Confirm that sessions are consumed only by the instance that issued them.
+- Decide whether `begin()` failure should be retried or reconciled, rather than leaving the authorization unrecoverable.
+- Distinguish repository errors from a missing policy in the gateway's diagnostics.
