@@ -340,3 +340,48 @@ Source: Google, "Protecting Chrome and Android users from compromised eMudhra in
 - **Apple:** confirmed from Apple's support page (19 October for intermediates, 23 October for G3).
 - **Chrome:** confirmed from Google's post (27 October for G3, 16 November SCT cutoff for G1).
 - **Still open:** Chrome's and Mozilla's decisions on eMudhra's remaining roots. Those are outside this repository's scope unless a root is re-added.
+
+## Update 17: consolidated status (supersedes earlier status lists)
+
+### Findings
+
+| Finding | Status | Where |
+|---|---|---|
+| F1. Incident runbook queried the wrong table | Fixed and merged | parmana-connectors #44 |
+| F2. Live Postgres release ledger had no tests | Tests added and passing; merged | parmana-connectors #44 |
+| F3. Replay identity keyed on businessTransactionId | Resolved: one authorization yields one transaction id | parmana-core `createReleaseVerifier` |
+| F4. Replay integration test skipped without a database | Run against a local database; passes | parmana-core |
+| F5. Core file count (866 vs 1,283) | Not reconciled. 1,283 is the `.ts` count excluding `node_modules` | n/a |
+| F6. Distrust list, startup guard and tests | Fixed and merged. The list now covers only emSign ECC Root CA - G3, matching eMudhra's statement | parmana-core #495, #496, #497 |
+
+### Setup gaps
+
+- SDK build before tests: fixed in `pretest` and merged.
+- `re2` for Node 24: environment only, not a repository change.
+- Pre-commit hook: checks Node 24 and requires `Signed-off-by` (`commit-msg`); merged.
+- Dockerfile: kept as major tag plus digest, as the architecture test requires.
+
+### Test results
+
+- `parmana-connectors`: 207 of 207 pass with a local Postgres (Node 22.23.4).
+- `parmana-core`: 3,566 pass, 81 skipped, 0 failed on Node 24.22.1 without a database. With a local Postgres and the live-suite opt-in, 3,641 of 3,641 pass on a fresh clone.
+- `parmana-verifier`: 68 of 68 pass (Node 24.22.1).
+- `parmana-connect`: 190 of 190 pass with a local Postgres (Node 24.22.1).
+
+### Distrusted roots
+
+- emSign ECC Root CA - G3 (`86:A1:EC:…:6B`): verified against eMudhra's repository download (subject and SHA-256). This is the only root on the distrust list.
+- emSign Root CA - G1 (both `2D:3A:…` and `40:F6:…`): not distrusted. eMudhra says it is active, and Chrome only stops trusting certificates issued after 16 November 2026 (the SCT cutoff). Node builds that bundle G1 will trust it again after PR #497.
+- emSign Root CA - C1 (`12:56:09:…:8F`) and emSign ECC Root CA - C3 (`BC:4D:80:…:B3`): verified against eMudhra's repository copies. Not on the list, because eMudhra says their removal from Mozilla is planned and unrelated to the incident.
+
+### Sources confirmed
+
+- **eMudhra statement** (updates 1 to 8, last updated 5 November 2026): the compromise is the ECC root behind the eight intermediates.
+- **Mozilla NSS 3.131.1 release notes** (20 October 2026): bug 2084101 removes G3; bug 2083709 removes C1 and C3.
+- **Apple support page** (published 29 October 2026): blocks the intermediates from 19 October 2026 and emSign ECC Root CA - G3 from 23 October 2026.
+- **Google's Chrome post** (updated 4 November 2026): removes G3 from the Chrome Root Store, with the change due 27 October 2026 PDT. G1 certificates issued after 16 November 2026 11:59 PM UTC are no longer trusted from Chrome 153.
+
+### Still open
+
+- Chrome and Mozilla are still evaluating eMudhra's other roots. This doesn't affect this repository unless one of those roots is re-added.
+- `parmana-verifier` and `parmana-connect` have no open findings.
