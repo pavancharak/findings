@@ -210,3 +210,9 @@ I applied the repo's own `scripts/apply-all-migrations.sql` to a local Postgres 
 
 - Verify the `40:F6:…` G1 certificate and the three other distrusted fingerprints against eMudhra's published values.
 - Confirm the NSS 3.131.1 and Apple claims about emSign ECC Root CA - G3, emSign Root CA - C1 and emSign ECC Root CA - C3 from a primary source.
+
+## Update 10: G3 root verified; scope narrowed
+
+- **emSign ECC Root CA - G3 verified.** Downloaded from `https://repository.emsign.com/certs/emSignECCRootCAG3.crt` (the URL in Mozilla bug 1515457). Subject `CN=emSign ECC Root CA - G3, O=eMudhra Technologies Limited, OU=emSign PKI, C=IN`. SHA-256 `86:A1:EC:BA:08:9C:4A:8D:3B:BE:27:34:C6:12:BA:34:1D:81:3E:04:3C:F9:E8:A8:62:CD:5C:57:A3:6B:BE:6B`, which matches the list entry.
+- **G1 `40:F6:…` settled as a real root.** Mozilla bug 1515457 lists emSign Root CA - G1 with SHA-256 `40F6AF0346A99AA1CD1D555A4E9CCE62C7F9634603EE406615833DC8C8D00367`, so it is the root Mozilla trusts. eMudhra says G1 remains active, so it is not a compromise and is not on the distrust list in the narrowing branch (`fix/narrow-distrust-to-g3`).
+- **Verification still open:** C1 and C3 are not checked against the repository (they are out of scope under the narrowing change). The NSS and Apple claims about C1, C3 and G3 still need a primary source.
