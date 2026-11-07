@@ -304,3 +304,17 @@ Sources checked from this sandbox. Where a page could not be opened, the result 
 
 - Confirm the NSS 3.131.1 bug entries (2084101 for G3, 2083709 for C1 and C3) in Mozilla's release notes.
 - Confirm Apple's G3 date from Apple's page, and Chrome's date from Chrome's root program announcements.
+
+## Update 15: Apple's dates confirmed from its own page
+
+- Source: Apple support, "About the compromised eMudhra intermediate Certification Authorities" (`https://support.apple.com/en-us/149555`), published 29 October 2026. Downloaded and searched locally.
+- Apple has blocked certificates from the compromised eMudhra intermediates since 19 October 2026. That covers 12 certificates, including certificates from emSign Root TLS CA - G3 (which chains to emSign ECC Root CA - G3) and six cross-signed by Sectigo.
+- On 23 October 2026 Apple began blocking emSign ECC Root CA - G3 itself. This confirms the G3 root named in eMudhra's statement.
+- The page does not mention emSign Root CA - G1, C1 or C3.
+- The Apple page also gives a command that removes G3 from macOS's `/etc/ssl/cert.pem`. Not relevant to the server, which uses Node's bundled store; not used here.
+
+### Status of the open items
+
+- **NSS 3.131.1:** confirmed from a search result showing Mozilla's release notes. The page itself wasn't opened from the sandbox. Bug 2084101 (G3) and bug 2083709 (C1 and C3) still need one check in the browser.
+- **Apple:** confirmed.
+- **Chrome:** still unverified. Needs Chrome's root program announcements.
