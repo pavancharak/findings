@@ -514,3 +514,29 @@ Date: 2026-11-07. Scope: the four repositories with this session's changes (parm
 
 - The parmana-core preflight and the new test have not run in full on a machine with dependencies installed. The preflight result for the published-version commit is pending.
 - No pull requests were opened for these branches. Opening them is the owner's decision.
+
+## Update 24: SDK version source, release recording, and branch consolidation
+
+Date: 2026-11-07.
+
+### Done
+
+- **Published SDK versions are now recorded, not inferred.** `parmana-core` `b255dcb` (on `claude/sweet-clarke-3nsvst`, with `04736a9` before it) adds two things. `scripts/llms/publishedSdkVersions.json` is the only source for the SDK versions the docs call current, and `llms.txt` reads it. `scripts/llms/recordPublishedSdkVersions.ts` (`npm run record:published-sdk`) writes that file only after checking npm and PyPI serve the version. Tested against the live registries: 2.0.0 is refused (not published); 1.6.3 is accepted.
+- **Test for docs drift.** `tests/architecture/sdk-versions-published.test.ts` fails when `llms.txt`, any docs page, or the install table names an SDK version other than the published one, or when a published version is ahead of the workspace version. Preflight passed on `04736a9`.
+- **Branch consolidation.** The `parmana-core` commits were moved onto `claude/sweet-clarke-3nsvst` by fast-forward (`53b590d..b255dcb`). The temporary `fix/published-sdk-versions` branch was deleted locally and on the remote.
+
+### Why the earlier preflight missed the problem
+
+The `llms` test compared committed output with a fresh generation from the same sources, so a wrong value in a hand-written source passed. The install table is hand-written MDX, and no test compared docs versions with the published ones. The new test closes that gap.
+
+### Decisions
+
+- The workspace versions stay at 2.0.0 while the packages are unpublished. The docs follow the registries.
+- Publishing is manual (`release.yml` says so). No workflow writes the published-version file. After a manual publish, run `npm run record:published-sdk -- --typescript X --python Y`, then regenerate `llms.txt`.
+- Hand-written version statements in the docs are not templated, because MDX has no templating in this site. The test guards them instead.
+
+### Open
+
+- No runbook yet documents the post-publish step.
+- Findings F8 to F11 are unchanged (see FINAL-REPORT.md).
+- The stop hook's uncommitted-changes reports came from sandbox copies, not the repositories.
