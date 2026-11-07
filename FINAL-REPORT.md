@@ -35,7 +35,7 @@ Companion files: `FINDINGS.md` (chronological record of every update) in this re
 | F9 | The second enforcement boundary (`ExecutionControlService` and `createReleaseVerifier`) does not check revocation, authority grants, policy hash or signals; that protection depends on the gateway attestation | Medium, pending a trace of who can obtain the attestation | Open | parmana-core `ExecutionControlService`, `createReleaseVerifier` |
 | F10 | Production session store is process-local (`InMemoryGatewaySessionStore`); needs confirming that a session is consumed only by the instance that issued it | Low to medium, pending confirmation | Open | parmana-core `createSessionStore`, `createExecutionControl` |
 | F11 | Any policy repository error is reported as "policy not found", so operational failures look like a missing policy (fails closed) | Low (diagnostics) | Open | parmana-core `ExecutionGateway.verify` |
-| F12 | The verifier accepted schema version 2 records (or records with no `schemaVersion`) by default, though they sign only seven top-level fields | Medium (verifier integrity for partially signed records) | Fixed in code; PR open, awaiting DCO, CI and review | parmana-verifier #36 |
+| F12 | The verifier accepted schema version 2 records (or records with no `schemaVersion`) by default, though they sign only seven top-level fields | Medium (verifier integrity for partially signed records) | Fixed and merged; closed | parmana-verifier #36 |
 
 Setup gaps, none affecting security:
 - The `typescript` SDK build was missing before tests; `pretest` now builds it (merged, #495).
@@ -104,7 +104,6 @@ Notes:
 - Chrome and Mozilla are still evaluating eMudhra's remaining roots. This affects this repository only if one of those roots is re-added to the list.
 - Confirm the post-merge CI run on `main` for PR #497 finishes green.
 - Decide whether the connector adapters and the verifier and connect packages need a security review.
-- Merge parmana-verifier #36 (F12) once DCO, CI and review are complete, then confirm F12 as closed.
 - Trace who can obtain the gateway attestation and call `ExecutionControlService.execute()` directly (F9).
 - Decide whether a `begin()` failure should be retried or reconciled (F8).
 - Confirm session consumption by issuing instance (F10).

@@ -484,3 +484,8 @@ Can a third party verify evidence without trusting the Parmana runtime or databa
 - **Tests:** JavaScript 72 of 72, examples 9 of 9, Python 49 of 49, including new tests for the refusal, the opt-in and trust-file validation.
 - **Version:** not bumped. The release version is a decision for the owner, because the package versions are aligned with the SDK packages.
 - **Status:** fixed in code, open pending DCO, CI and review.
+
+## Update 22: PR #36 merged
+
+- `parmana-verifier` PR #36 merged. F12 is closed: schema version 2 records, and records with no `schemaVersion`, are refused by default in both verifiers unless `allowLegacyV2` is set.
+- The verifier's package version is unchanged. Releasing the breaking change is the owner's decision.
