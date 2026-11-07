@@ -489,3 +489,54 @@ Can a third party verify evidence without trusting the Parmana runtime or databa
 
 - `parmana-verifier` PR #36 merged. F12 is closed: schema version 2 records, and records with no `schemaVersion`, are refused by default in both verifiers unless `allowLegacyV2` is set.
 - The verifier's package version is unchanged. Releasing the breaking change is the owner's decision.
+
+## Update 23: version bump to 2.0.0 and the published-version fix
+
+Date: 2026-11-07. Scope: the four repositories with this session's changes (parmana-verifier, parmana-core, parmana-connect, parmana-connectors).
+
+### Done
+
+- **Version bump to 2.0.0 (all packages).** The verifier is a breaking release (Update 22), so every package in the four repositories moved to 2.0.0. This covers the npm packages, the Python packages, the connector SDK and the internal `@parmana/*` pins. Nothing is published. Commits on `claude/sweet-clarke-3nsvst`:
+  - parmana-verifier `73dd198`: the version bump and the CHANGELOG entry (`[2.0.0] - 2026-11-07`). Verified: JavaScript 72 of 72, Python 49 of 49.
+  - parmana-core `53b590d`: the version bump across 21 files, including the lockfile entries.
+  - parmana-connect `d8540e1` (bump, including the MCP server's advertised version) and `1d2b303` (removes `env.example`, see below). Verified: 184 passed, 7 skipped.
+  - parmana-connectors `39d2691` (bump) and `1498548` (removes `.vercel/`, see below). Not verified: no dependencies were installed in the sandbox.
+- **Two files committed by mistake, both removed from the branch.** `git add -A` in parmana-connect and parmana-connectors staged an untracked file each (`env.example`, which holds only blank placeholders, and `.vercel/`, which holds Vercel link IDs). Each was removed by a follow-up commit, so the PR diff is the version bump only. The files stay in history, which is acceptable because they hold no secrets. Lesson: stage named files, not `git add -A`.
+- **Published-version finding.** `docs/site/llms.txt` was generated from the workspace versions in `package.json`, so it stated `@parmana/sdk` 2.0.0 on npm and `parmana` 2.0.0 on PyPI. Neither is published. The other docs still say 1.6.3 is current. The preflight did not catch this for two reasons: the `llms` test compares committed output with a fresh generation from the same sources, and the SDK install table is hand-written in `docs/site/choose-your-path.mdx`. No test compared docs versions with the published ones.
+
+### Pending
+
+- **Published-version fix, not yet committed.** A patch for parmana-core adds `scripts/llms/publishedSdkVersions.json` (1.6.3 for both SDKs), makes the `llms.txt` builder read that file, resets the two `llms.txt` lines to 1.6.3, and adds `tests/architecture/sdk-versions-published.test.ts`. The test fails when `llms.txt`, any docs page, or the install table names an SDK version other than the published one, or when a published version is ahead of the workspace. The test was checked with a Node script, not under vitest; formatting was not checked.
+- **Publishing.** When the SDKs are published, update `publishedSdkVersions.json`, regenerate `llms.txt`, and update the version statements in `docs/site/sdks/*.mdx` and `choose-your-path.mdx`.
+- **Open findings are unchanged:** F8 to F11 (see FINAL-REPORT.md).
+
+### Limitations of this update
+
+- The parmana-core preflight and the new test have not run in full on a machine with dependencies installed. The preflight result for the published-version commit is pending.
+- No pull requests were opened for these branches. Opening them is the owner's decision.
+
+## Update 24: SDK version source, release recording, and branch consolidation
+
+Date: 2026-11-07.
+
+### Done
+
+- **Published SDK versions are now recorded, not inferred.** `parmana-core` `b255dcb` (on `claude/sweet-clarke-3nsvst`, with `04736a9` before it) adds two things. `scripts/llms/publishedSdkVersions.json` is the only source for the SDK versions the docs call current, and `llms.txt` reads it. `scripts/llms/recordPublishedSdkVersions.ts` (`npm run record:published-sdk`) writes that file only after checking npm and PyPI serve the version. Tested against the live registries: 2.0.0 is refused (not published); 1.6.3 is accepted.
+- **Test for docs drift.** `tests/architecture/sdk-versions-published.test.ts` fails when `llms.txt`, any docs page, or the install table names an SDK version other than the published one, or when a published version is ahead of the workspace version. Preflight passed on `04736a9`.
+- **Branch consolidation.** The `parmana-core` commits were moved onto `claude/sweet-clarke-3nsvst` by fast-forward (`53b590d..b255dcb`). The temporary `fix/published-sdk-versions` branch was deleted locally and on the remote.
+
+### Why the earlier preflight missed the problem
+
+The `llms` test compared committed output with a fresh generation from the same sources, so a wrong value in a hand-written source passed. The install table is hand-written MDX, and no test compared docs versions with the published ones. The new test closes that gap.
+
+### Decisions
+
+- The workspace versions stay at 2.0.0 while the packages are unpublished. The docs follow the registries.
+- Publishing is manual (`release.yml` says so). No workflow writes the published-version file. After a manual publish, run `npm run record:published-sdk -- --typescript X --python Y`, then regenerate `llms.txt`.
+- Hand-written version statements in the docs are not templated, because MDX has no templating in this site. The test guards them instead.
+
+### Open
+
+- No runbook yet documents the post-publish step.
+- Findings F8 to F11 are unchanged (see FINAL-REPORT.md).
+- The stop hook's uncommitted-changes reports came from sandbox copies, not the repositories.
