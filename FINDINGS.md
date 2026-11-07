@@ -444,3 +444,48 @@ Checked against `parmana-core` `origin/main` (1180d97 or later; `ExecutionGatewa
 - Confirm that sessions are consumed only by the instance that issued them.
 - Decide whether `begin()` failure should be retried or reconciled, rather than leaving the authorization unrecoverable.
 - Distinguish repository errors from a missing policy in the gateway's diagnostics.
+
+## Update 20: parmana-verifier, trust and verification path
+
+Checked against `parmana-verifier` `origin/main` (707f4ad): `src/verify.mjs`, `src/trust.mjs`, `src/canonical.mjs`, and `python/parmana_verifier/verify.py` (structure and constants).
+
+### Verified from code
+
+- **No self-trust.** The trust set is supplied by the caller (`parseTrustPolicy`). The header states that the verifier never fetches keys.
+- **Keys are pinned.** `verifyEntry` recomputes the SHA-256 fingerprint of the public key (SPKI DER) and rejects a mismatch with the pinned fingerprint.
+- **Algorithm and key type must match.** A key trusted for one algorithm cannot verify another, and `publicKey.asymmetricKeyType` must match the expected type.
+- **Compromised keys are refused.** A `compromised` flag rejects every signature from that key.
+- **Validity window enforced.** The record's `createdAt` must fall within `[validFrom, validUntil)`.
+- **Hybrid envelope required by default.** Without `allowLegacyOnly` or `hybridRequiredFrom`, a record without a hybrid envelope is refused. A stripped envelope does not pass by default.
+- **Coverage is reported honestly.** The result carries `coverage: "full"` only for schema version 3 with a valid hybrid envelope; otherwise `"legacy"`.
+- **Canonicalization.** Keys are sorted, and `__proto__` is kept as an own property so it is covered by the hash. The Python module uses the same structure.
+- **Test evidence.** JavaScript 68 of 68 and Python 45 of 45 pass (earlier this session). Both reference the shared vectors.
+
+### Limitations found
+
+- **Schema version 2 covers only seven top-level fields:** `trustRecordId`, `businessTransactionId`, `transaction`, `authorization`, `overrides`, `executions`, `createdAt`. Any other top-level field of a v2 record is not covered by the signature. A record without `schemaVersion` defaults to v2, so the default is the weaker coverage. The verifier reports this as `coverage: "legacy"`, which is honest, but a third party should not treat a default-version record as fully signed.
+- **Trust-set distribution is out of band.** The verifier can only be as trustworthy as the trust file it is given. Its source and integrity must be established separately.
+- **Trust-root resolution in the Python verifier was checked structurally, not line by line.**
+
+### Answer to the review's question
+
+Can a third party verify evidence without trusting the Parmana runtime or database? For a schema version 3 record with a valid hybrid envelope, yes, given an independently obtained trust file: the signature, the pinned key and the validity window are all checked locally. For a version 2 record, only the seven fields above are covered, so the claim holds only for those fields.
+
+### Open items
+
+- Read the Python verifier line by line, including its trust resolution.
+- Decide whether v2 records should be refused by default, or the default changed to v3.
+- Establish how the trust file is distributed and verified.
+
+## Update 21: verifier schema version 2 refused by default
+
+- **Finding (from Update 20):** a record with no `schemaVersion`, or with `schemaVersion` 2, signs only seven top-level fields. The verifier accepted such records by default, reporting only `coverage: "legacy"`.
+- **Fix:** `parmana-verifier` PR #36 (`fix/verifier-v2-opt-in`, signed commit `9ae562c`). Both verifiers refuse these records unless `allowLegacyV2` (Python: `allow_legacy_v2`) is set, in code or in the trust file. The CLI reads the same field. Breaking change.
+- **Tests:** JavaScript 72 of 72, examples 9 of 9, Python 49 of 49, including new tests for the refusal, the opt-in and trust-file validation.
+- **Version:** not bumped. The release version is a decision for the owner, because the package versions are aligned with the SDK packages.
+- **Status:** fixed in code, open pending DCO, CI and review.
+
+## Update 22: PR #36 merged
+
+- `parmana-verifier` PR #36 merged. F12 is closed: schema version 2 records, and records with no `schemaVersion`, are refused by default in both verifiers unless `allowLegacyV2` is set.
+- The verifier's package version is unchanged. Releasing the breaking change is the owner's decision.
