@@ -279,3 +279,28 @@ Sources checked from this sandbox. Where a page could not be opened, the result 
 - Open the NSS 3.131.1 release notes and confirm the two bug entries.
 - Confirm Apple's G3 date from Apple's page, and Chrome's date from Chrome's root program announcements.
 - C1 and C3 against eMudhra's repository, if they are ever re-added.
+
+## Update 14: C1 and C3 verified; bundled roots vary by Node build
+
+### C1 and C3 verified against eMudhra's repository
+
+- Downloaded from `https://repository.emsign.com/certs/emSignRootCAC1.crt` and `https://repository.emsign.com/certs/emSignECCRootCAC3.crt` (the URLs in Mozilla bug 1515457).
+- `CN=emSign Root CA - C1, O=eMudhra Inc, OU=emSign PKI, C=US`, SHA-256 `12:56:09:AA:30:1D:A0:A2:49:B9:7A:82:39:CB:6A:34:21:6F:44:DC:AC:9F:39:54:B1:42:92:F2:E8:C8:60:8F`. Matches the value that was in the old list.
+- `CN=emSign ECC Root CA - C3, O=eMudhra Inc, OU=emSign PKI, C=US`, SHA-256 `BC:4D:80:9B:15:18:9D:78:DB:3E:1D:8C:F4:F9:72:6A:79:5D:A1:64:3C:A5:F1:35:8E:1D:DB:0E:DC:0D:7E:B3`. Matches.
+- Both are off the distrust list, by design: eMudhra's statement calls their removal planned and unrelated to the incident.
+
+### Which emSign roots a Node build bundles depends on the build
+
+- Node v24.18.0 (Windows dev machine) bundles four emSign roots:
+  - `emSign Root CA - G1`, SHA-256 `40:F6:AF:…:67`. Not `2D:3A:…`, which an earlier sandbox Node build (24.22.1) bundled.
+  - `emSign ECC Root CA - G3`, `86:A1:EC:…:6B`.
+  - `emSign Root CA - C1`, `12:56:09:…:8F`.
+  - `emSign ECC Root CA - C3`, `BC:4D:80:…:B3`.
+- Earlier CI logs on Node 24.22.2 showed the bundle holds none of the four listed roots.
+- So what a Node build trusts depends on its patch version, not just its major version. The distrust list only removes G3, so on a build like v24.18.0 the server removes G3 and nothing else. G1 (`40:F6:…`), C1 and C3 remain trusted there.
+- Consequence: on v24.18.0, G1 is trusted again after PR #497, as expected. C1 and C3 remain trusted there, and Mozilla removed them from NSS 3.131.1 for a planned reason. The distrust list does not claim otherwise.
+
+### Still open
+
+- Confirm the NSS 3.131.1 bug entries (2084101 for G3, 2083709 for C1 and C3) in Mozilla's release notes.
+- Confirm Apple's G3 date from Apple's page, and Chrome's date from Chrome's root program announcements.
