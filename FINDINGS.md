@@ -176,3 +176,27 @@ I applied the repo's own `scripts/apply-all-migrations.sql` to a local Postgres 
 - The three other distrusted fingerprints (`emSign ECC Root CA - G3`, `emSign Root CA - C1`, `emSign ECC Root CA - C3`) have not been checked against eMudhra's published values. No Node build checked here bundles them.
 - Confirm CI on `main` after both merges, including the Docker boot job and the Node 24.22.2 build.
 - `parmana-verifier` and `parmana-connect`: test suites not run.
+
+## Update 8: open items checked
+
+### CI on main after the merges
+
+- `parmana-core`: the CI run for the `main` merge of #494 (which includes #495) succeeded. The Scorecard, CodeQL and Python SDK runs also succeeded.
+- `parmana-connectors`: CI and CodeQL on `main` (merge of #44) succeeded.
+
+### Test suites not previously run
+
+- `parmana-verifier` (`npm test`, Node 24.22.1): 68 passed, 0 failed, 0 skipped.
+- `parmana-connect` (`npx vitest run`, Node 24.22.1): 183 passed and 7 skipped without a database. With a local Postgres 16 (`PARMANA_TEST_DATABASE_URL`) the skipped Postgres suite runs: 190 of 190 pass.
+
+### Distrusted fingerprints, status and one correction
+
+- **Correction to Update 5 and the PR text.** I called the old G1 value `40:F6:AF:…:67` a transcription error. That is not proven. No digest of the certificate that Node bundles matches it, so the bundled certificate is `2D:3A:E8:…:67`. But a search result links `40F6AF0346A99AA1CD1D555A4E9CCE62C7F9634603EE406615833DC8C8D00367` to emSign Root CA - G1 as a CA ID on Cloudflare Radar. That suggests a second, real G1 certificate, which the original list was targeting. I could not check this: `radar.cloudflare.com` and `www.e2encrypted.com` are not reachable from this sandbox.
+- **Recommended next step:** keep both G1 fingerprints in the list (`2D:3A:…` and `40:F6:…`). Entries are only removed from Node's store if they are bundled, so the extra entry is harmless. This needs your go-ahead, because it changes a security list.
+- The other three entries (emSign ECC Root CA - G3, emSign Root CA - C1, emSign ECC Root CA - C3) match the values listed in Mozilla's NSS bug 1515457, per a search result. That is a secondary source, not eMudhra's own repository, so they are not yet fully verified. The same search result says NSS 3.131.1 (20 October) removed trust in C1, C3 and G3, and that Apple began blocking G3 on 23 October. I have not verified either claim.
+
+### Still open
+
+- Decide whether to add the `40:F6:…` G1 entry back to the list.
+- Verify the three other fingerprints against eMudhra's own published values (not reachable from this sandbox).
+- Confirm the NSS and Apple claims about C1, C3 and G3 from a primary source.
