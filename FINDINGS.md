@@ -250,3 +250,14 @@ I applied the repo's own `scripts/apply-all-migrations.sql` to a local Postgres 
 - DCO and CI on PR #497.
 - Verify C1 and C3 against eMudhra's repository, if they are ever re-added.
 - Primary-source confirmation of the NSS 3.131.1 and Apple dates.
+
+## Update 12: PR #497 merged
+
+- `parmana-core` #497 merged 2026-11-07 15:58 UTC. The distrust list now holds only emSign ECC Root CA - G3 (`86:A1:EC:…:6B`), verified against eMudhra's repository download.
+- Behavior after merge: Node builds that bundle emSign Root CA - G1 will trust it again. The PR description asked for confirmation before merge; the merge is the confirmation.
+- Earlier entries for PR #496 (the G1 `40:F6:…` addition) are superseded by this change.
+
+### Still open
+
+- C1 and C3 against eMudhra's repository, if they are ever re-added.
+- Primary-source confirmation of the NSS 3.131.1 and Apple dates.
