@@ -152,3 +152,27 @@ I applied the repo's own `scripts/apply-all-migrations.sql` to a local Postgres 
 - The first attempt failed because the hook ran under Node 22, so `re2` and the Node-24 test set failed to load. Re-running under Node 24 passed.
 - Commit `51e8303` (`Fix distrusted emSign G1 fingerprint; build SDK in pretest`) is pushed to `parmana-core` branch `claude/sweet-clarke-3nsvst`.
 - Still unverified: the other three distrusted fingerprints.
+
+## Update 7: fixes merged, status
+
+| Finding | Status | Where |
+|---|---|---|
+| F1. Runbook queried the wrong table | Fixed, merged | parmana-connectors #44 |
+| F2. Live Postgres release ledger untested | Tests added and passing; merged | parmana-connectors #44 |
+| F3. Replay identity keyed on businessTransactionId | Resolved (one authorization yields one transaction id) | Core `createReleaseVerifier` |
+| F4. Replay integration test skipped without a database | Ran with the local database; passes | parmana-core |
+| F5. Core file count (866 vs 1,283) | Not reconciled; 1,283 is the `.ts` count excluding `node_modules` | n/a |
+| F6. Distrusted-root tests and production startup | Fixed, merged. G1 fingerprint corrected; guard relaxed to report zero matches; tests check invariants and removal on any build | parmana-core #495 |
+
+### Setup gaps
+
+- SDK build before tests: fixed in `pretest`, merged.
+- `re2` for Node 24: environment only; not a repo change.
+- Pre-commit hook: now checks Node 24 and requires a `Signed-off-by` line (`commit-msg`), merged.
+- Dockerfile: left as major-tag-plus-digest, which the architecture test requires.
+
+### Still open
+
+- The three other distrusted fingerprints (`emSign ECC Root CA - G3`, `emSign Root CA - C1`, `emSign ECC Root CA - C3`) have not been checked against eMudhra's published values. No Node build checked here bundles them.
+- Confirm CI on `main` after both merges, including the Docker boot job and the Node 24.22.2 build.
+- `parmana-verifier` and `parmana-connect`: test suites not run.
