@@ -200,3 +200,13 @@ I applied the repo's own `scripts/apply-all-migrations.sql` to a local Postgres 
 - Decide whether to add the `40:F6:…` G1 entry back to the list.
 - Verify the three other fingerprints against eMudhra's own published values (not reachable from this sandbox).
 - Confirm the NSS and Apple claims about C1, C3 and G3 from a primary source.
+
+## Update 9: PR #496 merged
+
+- `parmana-core` #496 (merged 2026-11-07 15:39 UTC) adds the second emSign G1 fingerprint, `40:F6:AF:…:67`, to the distrust list alongside `2D:3A:E8:…:67`. It also adds a test that the list entries are well-formed SHA-256 with no duplicates. The `40:F6:…` value is still unverified against eMudhra's published certificate. The PR and the code comment say so.
+- Checks on the PR: DCO, CodeQL, Dependency Review, Python SDK, Docker image and CI all passed.
+
+### Still open
+
+- Verify the `40:F6:…` G1 certificate and the three other distrusted fingerprints against eMudhra's published values.
+- Confirm the NSS 3.131.1 and Apple claims about emSign ECC Root CA - G3, emSign Root CA - C1 and emSign ECC Root CA - C3 from a primary source.
