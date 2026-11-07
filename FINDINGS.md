@@ -1,6 +1,6 @@
 # Parmana security review: findings
 
-Status: partial review. Source reading plus targeted follow-ups. The test suites were NOT run: execution was blocked by the auto-mode classifier. See "Update 2".
+Status: partial review. Source reading plus test runs (see "Update 3"). Test runs are now done; the code review is still partial.
 
 ## Scope and method
 
@@ -28,7 +28,7 @@ Status: partial review. Source reading plus targeted follow-ups. The test suites
 - **Failure scenario:** during a refund incident, an operator finds no row in the table the runbook names, concludes the connector never ran, and issues a second refund.
 - **Recommendation:** correct the runbook to query `parmana_connectors_release_ledger` by `business_transaction_id`, and remove or label the dead nonce store.
 
-### F2. The live Postgres release ledger has no tests (test coverage gap, high). Test added, not yet run
+### F2. The live Postgres release ledger has no tests (test coverage gap, high). Test added and passing
 
 - `PostgresReleaseLedger` is the production default, but no test imports it. `tests/service/server.test.ts` uses `MemoryReleaseLedger`.
 - `tests/service/nonce-store.postgres.test.ts` exercises the dead `PostgresNonceStore`, which gives false assurance about replay protection.
@@ -41,7 +41,7 @@ Status: partial review. Source reading plus targeted follow-ups. The test suites
 - If core issued two releases with different transaction ids for one authorization, the connector would execute both. Core's `ExecutionControlService` release verifier should prevent that by consuming the nonce, but that was not verified.
 - **Resolved.** Core's `createReleaseVerifier` (`packages/api/src/bootstrap/createReleaseVerifier.ts`) consumes the authorization's nonce once, on the single release path. The `businessTransactionHash` that the authorization signs covers the executable content, including `businessTransactionId`. So one authorization cannot yield two transaction ids, and the connector's keying on transaction id is safe. Keying on `authorizationId` as well would be defense in depth, but it is not required.
 
-### F4. Core replay integration test is skipped without a database (test coverage, medium)
+### F4. Core replay integration test is skipped without a database (test coverage, medium). Now run and passing
 
 - `packages/api/tests/integration/replay.integration.test.ts` uses `describe.skipIf(!databaseConfigured)`. A green run without a database does not exercise replay.
 - **Recommendation:** run this test in CI against a real Postgres, and report skipped counts.
@@ -52,7 +52,7 @@ Status: partial review. Source reading plus targeted follow-ups. The test suites
 
 ## Open items
 
-- Run the test suites in all four repos, and report pass, fail and skipped counts. Blocked; see "Update 2".
+- Run the test suites in parmana-verifier and parmana-connect (not yet run).
 - Review the `ExecutionTrustApplication` recovery path.
 - Review `parmana-verifier` (JS/Python parity, canonicalization, signatures) and `parmana-connect` (MCP, credentials, failure recovery).
 - Review each connector adapter's capability set, idempotency and authentication.
@@ -70,3 +70,34 @@ Status: partial review. Source reading plus targeted follow-ups. The test suites
 - `npx vitest run` was denied by the auto-mode classifier. Pass, fail and skipped counts are therefore **unknown** for all four repos.
 - Both the first run and the second run after your "go" were denied. I did not work around the denial.
 - Item to unblock: allow `npx vitest run` (or `npm test`) for the connectors and core repos.
+
+## Update 3: test results
+
+Environment: local Postgres 16 (throwaway, 127.0.0.1), Node 24.22.1 for core, Node 22.23.4 for connectors.
+
+### parmana-connectors (`npx vitest run`, with `PARMANA_TEST_DATABASE_URL` set)
+
+- **207 passed, 0 failed, 0 skipped.** This includes the 3 new ledger tests and the 3 existing Postgres nonce-store tests. Without a database, 6 were skipped.
+
+### parmana-core (`npx vitest run`, Node 24.22.1, `ALLOW_LIVE_SUPABASE` unset)
+
+- **3,558 passed, 3 failed, 80 skipped** across 372 files. Only 1 file failed: `packages/api/tests/unit/distrustCompromisedRoots.test.ts`.
+- Replay integration (`replay.integration.test.ts`) and external connector release (`external-connector-release.integration.test.ts`) both pass. The replay test is skipped by default, so I ran it with `ALLOW_LIVE_SUPABASE=1` against the local database and it passed (2/2). This resolves F4.
+- The SDK (`typescript/`) had to be built first (`npm run build --workspace=typescript`). Without it, 9 files fail on `dist/` missing.
+- `re2` had to be rebuilt for Node 24 (`npm rebuild re2`). Otherwise 124 files fail to load on `NODE_MODULE_VERSION`.
+
+### Failures that are not product defects (environment)
+
+- **Live Supabase suites** (about 50 tests across `packages/storage` and `packages/api`) fail only when `ALLOW_LIVE_SUPABASE=1` is set, because the local database lacks the Supabase schema (`relation "consumed_nonces" does not exist`, and others). They need the real schema to run, so I did not count them.
+
+### New finding
+
+**F6. The distrusted-root tests assume a Node build that bundles one of the distrusted roots (test brittleness, low).**
+- `distrustCompromisedRoots.test.ts` expects at least one of the distrusted roots to be bundled by Node. On Node 24.22.1 (`/opt/node24`), zero are, so all 3 tests fail. The test's own comment says the 24.22.1 binary bundles only emSign Root CA - G1, which this check does not match.
+- Impact: the function removes zero roots on this build, which is a no-op rather than a bypass. But the tests cannot confirm that the removal works on the Node build the comment describes.
+- Recommendation: make the test derive its expectation from the bundled roots at runtime, or pin the Node version in CI and reconcile the comment with the actual bundle.
+
+### Not run
+
+- `parmana-verifier` and `parmana-connect`: test suites not run.
+- Live Supabase suites: need the schema.
