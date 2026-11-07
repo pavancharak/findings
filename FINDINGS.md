@@ -318,3 +318,25 @@ Sources checked from this sandbox. Where a page could not be opened, the result 
 - **NSS 3.131.1:** confirmed from a search result showing Mozilla's release notes. The page itself wasn't opened from the sandbox. Bug 2084101 (G3) and bug 2083709 (C1 and C3) still need one check in the browser.
 - **Apple:** confirmed.
 - **Chrome:** still unverified. Needs Chrome's root program announcements.
+
+## Update 16: Chrome dates confirmed from Google's post
+
+Source: Google, "Protecting Chrome and Android users from compromised eMudhra intermediate CA certificates" (`https://blog.google/security/protecting-chrome-and-android-users-from-compromised-emudhra-intermediate-ca-certificates/`). Downloaded and searched locally. The post has an update dated 4 November 2026.
+
+- **Timeline:** the report reached the Chrome Root Program on 17 October 2026 at 18:05 UTC. A CRLSet update blocked the affected intermediates' SPKI hashes at 19:45 UTC the same day. Chrome says no certificates from these CAs were logged to Certificate Transparency before the block.
+- **G3 removal:** Chrome removed emSign ECC Root CA - G3 from the Chrome Root Store. The change was expected on all devices on Tuesday 27 October 2026 PDT, and sooner on Canary and Beta.
+- **G1 change (new, 4 November 2026 update):** TLS server certificates validating to emSign Root CA - G1 whose earliest Signed Certificate Timestamp is after 16 November 2026 11:59:59 PM UTC will no longer be trusted by default in Chrome 153 and later. Certificates whose earliest SCT is on or before that time are unaffected.
+- **Remaining eMudhra roots:** Chrome is still investigating whether eMudhra's other roots stay in the Chrome Root Store. The post does not mention C1 or C3.
+
+### Effect on this repository
+
+- The server's distrust list (after PR #497) covers only G3, which matches Chrome's G3 removal.
+- G1 is distrusted by Chrome only for certificates issued after the SCT cutoff, so the policy change is about issuance timing, not a compromise. This is consistent with leaving G1 off our list.
+- Node's trust store is separate from Chrome's. Nothing here changes what the server trusts, but the Chrome dates are now confirmed for the findings file.
+
+### Status of the open items
+
+- **NSS 3.131.1:** confirmed from Mozilla's release notes in your download (bugs 2084101 for G3 and 2083709 for C1 and C3).
+- **Apple:** confirmed from Apple's support page (19 October for intermediates, 23 October for G3).
+- **Chrome:** confirmed from Google's post (27 October for G3, 16 November SCT cutoff for G1).
+- **Still open:** Chrome's and Mozilla's decisions on eMudhra's remaining roots. Those are outside this repository's scope unless a root is re-added.
