@@ -1,6 +1,6 @@
 # Parmana security review: final report
 
-Status: final for the scope below, updated for F7 (parmana-connect #49, merged). Date of this report: 7 November 2026.
+Status: final for the scope below, updated for F7 (parmana-connect #49, merged) and for the execution gateway review (F8 to F11, open). Date of this report: 7 November 2026.
 Repositories: `pavancharak/parmana-core`, `pavancharak/parmana-connectors`, `pavancharak/parmana-verifier`, `pavancharak/parmana-connect`.
 Companion files: `FINDINGS.md` (chronological record of every update) in this repository.
 
@@ -31,6 +31,10 @@ Companion files: `FINDINGS.md` (chronological record of every update) in this re
 | F5 | Preliminary report's file count (866) did not match the repository | Low | Not reconciled. The count of `.ts` files excluding `node_modules` is 1,283 | n/a |
 | F6 | Distrusted-root list, startup guard and tests did not match Node's bundled root store or eMudhra's statement | High (production startup) | Fixed and merged: list narrowed to G3, guard reports rather than refuses on zero matches, tests check invariants | parmana-core #495, #496, #497 |
 | F7 | Connect consumed an authorization's nonce before checking the transaction hash, so a tampered request could block the legitimate one (denial of service for that authorization; no unauthorized execution) | Low to medium (availability) | Fixed and merged; closed | parmana-connect #49 |
+| F8 | Direct execution consumes the authorization's nonce before the outcome is recorded; a failure at that point leaves the authorization stuck with no recoverable result (no double execution) | Low to medium (recoverability) | Open | parmana-core `ExecutionGateway.execute` / `verify` |
+| F9 | The second enforcement boundary (`ExecutionControlService` and `createReleaseVerifier`) does not check revocation, authority grants, policy hash or signals; that protection depends on the gateway attestation | Medium, pending a trace of who can obtain the attestation | Open | parmana-core `ExecutionControlService`, `createReleaseVerifier` |
+| F10 | Production session store is process-local (`InMemoryGatewaySessionStore`); needs confirming that a session is consumed only by the instance that issued it | Low to medium, pending confirmation | Open | parmana-core `createSessionStore`, `createExecutionControl` |
+| F11 | Any policy repository error is reported as "policy not found", so operational failures look like a missing policy (fails closed) | Low (diagnostics) | Open | parmana-core `ExecutionGateway.verify` |
 
 Setup gaps, none affecting security:
 - The `typescript` SDK build was missing before tests; `pretest` now builds it (merged, #495).
@@ -99,3 +103,7 @@ Notes:
 - Chrome and Mozilla are still evaluating eMudhra's remaining roots. This affects this repository only if one of those roots is re-added to the list.
 - Confirm the post-merge CI run on `main` for PR #497 finishes green.
 - Decide whether the connector adapters and the verifier and connect packages need a security review.
+- Trace who can obtain the gateway attestation and call `ExecutionControlService.execute()` directly (F9).
+- Decide whether a `begin()` failure should be retried or reconciled (F8).
+- Confirm session consumption by issuing instance (F10).
+- Separate repository errors from a missing policy in gateway diagnostics (F11).
