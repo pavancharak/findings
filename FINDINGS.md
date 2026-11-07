@@ -100,4 +100,24 @@ Environment: local Postgres 16 (throwaway, 127.0.0.1), Node 24.22.1 for core, No
 ### Not run
 
 - `parmana-verifier` and `parmana-connect`: test suites not run.
-- Live Supabase suites: need the schema.
+
+## Update 4: live Supabase suites run; setup gaps assessed
+
+I applied the repo's own `scripts/apply-all-migrations.sql` to a local Postgres 16 database. The Supabase roles (`anon`, `authenticated`, `service_role`) and `auth.uid()`/`auth.role()`/`auth.jwt()` were stubbed, because a plain Postgres lacks them. The suites use `DATABASE_URL` through plain `pg`, not PostgREST, so no Supabase project was needed.
+
+### parmana-core, full suite, Node 24.22.1, `ALLOW_LIVE_SUPABASE=1`, schema applied
+
+- **3,628 passed, 3 failed, 10 skipped** before the inbound suites were run separately. Those 10 are the inbound repository suites, which need `TEST_DATABASE_URL` set to a database that differs from `DATABASE_URL`. Run separately against a cloned, migrated database: **10 passed**.
+- Net: **3,638 passed, 3 failed (all F6), 0 skipped**.
+- The live Supabase repository suites (about 50 tests, including concurrency and two-person-approval checks) all pass against the migrated schema.
+
+### Setup issues, assessed against the repo
+
+- **SDK build before tests.** `npm test` runs `pretest`, which runs `tsc -b` but not the `typescript` workspace build. CI runs `npm run build` before `npm test` (`.github/workflows/ci.yml` line 62), so CI is not affected. A fresh local clone must run `npm run build` first, or 9 files fail. This is a developer-experience gap. I did not change `pretest`, because CI already covers it and changing the script is a decision for the owner.
+- **`re2` native module.** Core pins `engines.node` to `24.x` and CI uses Node 24.22.2. The rebuild was needed only because my first install used Node 22. Not a repo defect.
+- **Node patch version.** CI pins 24.22.2 and I used 24.22.1. Not expected to matter, but unverified.
+
+### Still open
+
+- **F6** (distrusted-root tests) is unchanged. It needs an owner decision: derive the expectation at runtime, or pin a Node build and reconcile the comment.
+- `parmana-verifier` and `parmana-connect` test suites: not run.
