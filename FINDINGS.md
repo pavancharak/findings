@@ -639,3 +639,113 @@ Date: 2026-11-08. Checked against two pages on Paytm's public documentation, sav
 - F26-5 and F26-8 are open. Do not enable live Paytm refunds until the endpoint paths and the duplicate-refId behaviour are confirmed by Paytm's merchant documentation or support.
 - The F26-1 to F26-4 fixes are on `fix/connectors-ambiguous-refunds` in `parmana-connectors`. They do not change the paths.
 - Next: confirm the apply and status paths and the duplicate-refId response with Paytm; then correct the connector and add a test that checks each path against the documented one.
+
+## F26-5: whether Paytm rejects a reused refId (open, unconfirmed)
+
+Recorded: 2026-11-08. Status: open. Severity: medium until confirmed, because a wrong assumption here could allow a second refund.
+
+### What the connector assumes
+
+`paytm-connector.ts` sends each refund with `refId` set to the caller's `refundReference`, or else to the release's `businessTransactionId`. Before sending, it checks the refId's status:
+
+- A confirmed status returns the earlier refund and sends nothing.
+- A `PENDING` status is refused and not sent again.
+- Any other status, including `UNKNOWN`, leads to a new refund with the same refId.
+
+The last branch is safe only if Paytm refuses a second refund with a refId it has already used. The connector does not enforce that.
+
+### What was checked
+
+- A search snippet of Paytm's refund documentation said a duplicate refId is rejected with code 701 ("Refund Already Raised with Same REFID") and status `TXN_FAILURE`.
+- The snippet was not confirmed on the page. `paytmpayments.com/docs/api/refund-api/` and `paytmpayments.com/docs/api/refund-api-sync` (saved and searched 2026-11-08) contain neither "701", "duplicate", nor "already".
+- Neither page documents a status endpoint matching the connector's `/v2/refund/status`. See F26-8.
+
+### Why it stays open
+
+- The snippet's code and wording have no confirmed source.
+- The status check is itself unverified (F26-8), so the connector cannot yet rely on the status it reads.
+- The connector's tests use a fake Paytm, so no test covers what Paytm does with a reused refId.
+
+### To close
+
+1. Obtain Paytm's written behaviour for a refund sent with an existing refId: the response, its code and its status, from Paytm's merchant documentation or support.
+2. Confirm the status endpoint, its path, and what it returns for an unknown refId.
+3. Change the connector so that an unknown or unparseable status is refused rather than followed by a send, unless Paytm's written behaviour says a reused refId is rejected.
+4. Add a test for the confirmed response.
+
+Until steps 1 and 2 are done, do not enable live Paytm refunds.
+
+## Update 28: parmana-connectors release path (A, C, D)
+
+Date: 2026-11-08. Checked against `parmana-connectors` `origin/main` (`888b782`, after PR #48). Source only.
+
+**F28-1. The release's `connectorId` is signed but never checked (medium).** `connectorId` appears in the release type in `src/service/release.ts` and nowhere else. `checkExternalRelease()` checks the audience and whether the capability is served by this endpoint, but not the connector identity. A release signed for another connector passes if its capability happens to be served here. Fix: configure an immutable connector ID and require exact equality before the release is claimed.
+
+**F28-2. Ledger expiry is stored but not enforced (low to medium).** `PostgresReleaseLedger` writes `expires_at` on insert, but `claim()` never reads it, and no code deletes old rows. The primary key is the global `business_transaction_id`. Consequences: the table grows without limit, and a transaction ID stays blocked after its expiry. Fix: define the namespace (per tenant and connector), enforce the reuse policy, and add retention cleanup.
+
+**F28-3. The `PARMANA_NONCE_STORE` setting is misleading (low).** `src/service/config.ts` exposes `PARMANA_NONCE_STORE`, and `api/execute.ts` uses it to choose between `PostgresReleaseLedger` and `MemoryReleaseLedger`. There is no separate nonce store in this repository. The business-transaction deduplication is real, but the name suggests a nonce check that doesn't exist. Fix: rename the setting to match what it selects, or add the nonce check it implies.
+
+### Not in this update
+
+- Target binding across the adapters (report item E) was not checked here. Update 26 covers the adapter behaviour.
+- The report's point that the service verifies Parmana's signature but does not re-evaluate policy is accurate. It matches the intended split between Core and Connectors, so it is not recorded as a finding.
+
+### Status
+
+- F28-1 to F28-3 are open. None has a fix branch yet.
+- F28-1 should be fixed before any multi-connector deployment, because a release signed for one connector would otherwise run on another.
+
+## Update 29: parmana-connectors release path fixed (F28-1 to F28-3); connector fixes merged
+
+Date: 2026-11-08.
+
+### Fixed
+
+- **F28-1, connector identity (fixed).** The release's signed `connectorId` must equal the connector this service runs. A release signed for another connector is refused, even when its capability is served here. Regression test added.
+- **F28-2, ledger growth and reuse (fixed).** Answered releases whose window has closed (at least 60 seconds past expiry) move to `parmana_connectors_release_ledger_archive` in one statement, by `npm run ledger:archive`. The claim checks both tables, so an archived transaction ID is never run again. Rows with no stored answer are never archived, because their outcome is unknown. Tests run against a real Postgres 16.
+- **F28-3, misleading setting (fixed).** `PARMANA_RELEASE_LEDGER` names the release ledger. `PARMANA_NONCE_STORE` is still accepted with a deprecation warning. Setting both to different values stops startup. The log event `nonce_store_memory` is now `release_ledger_memory`; alerts that match the old name need updating.
+
+### Status
+
+- Fixes for F28-1 to F28-3 are on `fix/release-ledger-permanent` in `parmana-connectors`, PR #49, not yet merged. The full suite passes with the Postgres tests enabled (218 tests).
+- Deployment: apply the new version first (it creates the archive table at startup), then schedule `npm run ledger:archive` with `PARMANA_DATABASE_URL` set. Nothing runs the archive automatically.
+- The F26-1 to F26-4 fixes (Razorpay, Paytm) were merged to `main` through PR #48.
+- Still open: F26-5 and F26-8 (Paytm reused refId and endpoint paths; see Update 27 and the F26-5 entry), and F26-6 and F26-7 (design notes).
+- F28 target binding across the adapters (report item E) remains unchecked.
+
+## Update 30: PR #49 merged (F28-1 to F28-3)
+
+Date: 2026-11-08.
+
+- `parmana-connectors` PR #49 (`fix/release-ledger-permanent`) is merged to `main`. F28-1, F28-2 and F28-3 are fixed in `main`.
+- The first CI run failed on a test in `tests/service/release.test.ts`, not on the fix. The lifetime test read the clock twice, so a millisecond boundary between the two reads failed it intermittently. The test now reads the clock once. Commit `a08f2cc`. Recorded because it is the kind of flaky test that can hide a real failure.
+- Deployment still needs two steps: apply the new version (it creates the archive table at startup), and schedule `npm run ledger:archive` with `PARMANA_DATABASE_URL` set. Nothing runs the archive automatically.
+- Update 29 said the PR was not merged yet. This update supersedes that status.
+- Still open: F26-5 and F26-8 (Paytm), F26-6 and F26-7 (design notes), and the F28 target-binding check across the adapters.
+
+## Update 31: connectors production check, deploy error, and a rotated database credential
+
+Date: 2026-11-08.
+
+### Production check (parmana-connectors)
+
+- The new version of `main` (PR #49, merged) was deployed to Vercel Production and is Ready.
+- The first request to `/api/execute` (an empty body, refused without running anything) started the service. Both ledger tables and the archive table now exist on the production database, alongside the older `parmana_connectors_nonces` table.
+- No answered release has expired yet, so the archive has moved 0 rows. The archive job runs hourly as a Windows scheduled task on the operator's machine. It ran successfully once (`Last Result` 0).
+- The scheduled task runs only while that PC is on, and it reads the database URL from a plain-text user environment variable. Both are recorded as operational limits, not fixed.
+
+### Deploy log error (new, fixed in PR #50)
+
+- The Vercel build reported two errors, `TS2688: Cannot find type definition file for 'node'`, while type-checking the `api/` functions. The deployment still went live, so this was a build-quality error.
+- Cause: `@types/node` was a devDependency, and Vercel's production install omits devDependencies.
+- Fix: PR #50 (`fix/types-node-runtime`) moves `@types/node` to dependencies. Typecheck, build and the full suite pass in the sandbox. PR #50 is open and not yet merged; the log should be rechecked after the next deploy.
+
+### Credential exposure and rotation
+
+- During the production check, a database connection string including its password was pasted into the chat by mistake. The password was rotated immediately afterwards and the old one no longer works.
+- The connection string itself is not recorded here. There is no evidence in the session of any use of the old password. The database access logs have not been checked for it.
+- Follow-up: update the rotated password wherever the service reads it (Vercel Production), confirm the deployment still connects, and move the connection string out of plain-text user environment variables.
+
+### Status
+
+- Open: PR #50 (build fix), the F26-5 and F26-8 Paytm questions, F26-6 and F26-7 design notes, the F28 target-binding check across adapters, and the scheduled task's dependence on this PC.
