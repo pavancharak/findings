@@ -722,3 +722,30 @@ Date: 2026-11-08.
 - Deployment still needs two steps: apply the new version (it creates the archive table at startup), and schedule `npm run ledger:archive` with `PARMANA_DATABASE_URL` set. Nothing runs the archive automatically.
 - Update 29 said the PR was not merged yet. This update supersedes that status.
 - Still open: F26-5 and F26-8 (Paytm), F26-6 and F26-7 (design notes), and the F28 target-binding check across the adapters.
+
+## Update 31: connectors production check, deploy error, and a rotated database credential
+
+Date: 2026-11-08.
+
+### Production check (parmana-connectors)
+
+- The new version of `main` (PR #49, merged) was deployed to Vercel Production and is Ready.
+- The first request to `/api/execute` (an empty body, refused without running anything) started the service. Both ledger tables and the archive table now exist on the production database, alongside the older `parmana_connectors_nonces` table.
+- No answered release has expired yet, so the archive has moved 0 rows. The archive job runs hourly as a Windows scheduled task on the operator's machine. It ran successfully once (`Last Result` 0).
+- The scheduled task runs only while that PC is on, and it reads the database URL from a plain-text user environment variable. Both are recorded as operational limits, not fixed.
+
+### Deploy log error (new, fixed in PR #50)
+
+- The Vercel build reported two errors, `TS2688: Cannot find type definition file for 'node'`, while type-checking the `api/` functions. The deployment still went live, so this was a build-quality error.
+- Cause: `@types/node` was a devDependency, and Vercel's production install omits devDependencies.
+- Fix: PR #50 (`fix/types-node-runtime`) moves `@types/node` to dependencies. Typecheck, build and the full suite pass in the sandbox. PR #50 is open and not yet merged; the log should be rechecked after the next deploy.
+
+### Credential exposure and rotation
+
+- During the production check, a database connection string including its password was pasted into the chat by mistake. The password was rotated immediately afterwards and the old one no longer works.
+- The connection string itself is not recorded here. There is no evidence in the session of any use of the old password. The database access logs have not been checked for it.
+- Follow-up: update the rotated password wherever the service reads it (Vercel Production), confirm the deployment still connects, and move the connection string out of plain-text user environment variables.
+
+### Status
+
+- Open: PR #50 (build fix), the F26-5 and F26-8 Paytm questions, F26-6 and F26-7 design notes, the F28 target-binding check across adapters, and the scheduled task's dependence on this PC.
