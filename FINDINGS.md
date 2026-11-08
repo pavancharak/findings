@@ -674,3 +674,23 @@ The last branch is safe only if Paytm refuses a second refund with a refId it ha
 4. Add a test for the confirmed response.
 
 Until steps 1 and 2 are done, do not enable live Paytm refunds.
+
+## Update 28: parmana-connectors release path (A, C, D)
+
+Date: 2026-11-08. Checked against `parmana-connectors` `origin/main` (`888b782`, after PR #48). Source only.
+
+**F28-1. The release's `connectorId` is signed but never checked (medium).** `connectorId` appears in the release type in `src/service/release.ts` and nowhere else. `checkExternalRelease()` checks the audience and whether the capability is served by this endpoint, but not the connector identity. A release signed for another connector passes if its capability happens to be served here. Fix: configure an immutable connector ID and require exact equality before the release is claimed.
+
+**F28-2. Ledger expiry is stored but not enforced (low to medium).** `PostgresReleaseLedger` writes `expires_at` on insert, but `claim()` never reads it, and no code deletes old rows. The primary key is the global `business_transaction_id`. Consequences: the table grows without limit, and a transaction ID stays blocked after its expiry. Fix: define the namespace (per tenant and connector), enforce the reuse policy, and add retention cleanup.
+
+**F28-3. The `PARMANA_NONCE_STORE` setting is misleading (low).** `src/service/config.ts` exposes `PARMANA_NONCE_STORE`, and `api/execute.ts` uses it to choose between `PostgresReleaseLedger` and `MemoryReleaseLedger`. There is no separate nonce store in this repository. The business-transaction deduplication is real, but the name suggests a nonce check that doesn't exist. Fix: rename the setting to match what it selects, or add the nonce check it implies.
+
+### Not in this update
+
+- Target binding across the adapters (report item E) was not checked here. Update 26 covers the adapter behaviour.
+- The report's point that the service verifies Parmana's signature but does not re-evaluate policy is accurate. It matches the intended split between Core and Connectors, so it is not recorded as a finding.
+
+### Status
+
+- F28-1 to F28-3 are open. None has a fix branch yet.
+- F28-1 should be fixed before any multi-connector deployment, because a release signed for one connector would otherwise run on another.
