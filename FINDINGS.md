@@ -808,3 +808,30 @@ The release's signed `target` should be the object the connector acts on. Each a
 
 - F28-4 is open. No fix branch exists yet.
 - Fix 1 and fix 2 should come before any further live Paytm or generic-connector use.
+
+## Update 34: Core and Connectors disagreed on the external connector identity (F28-5)
+
+Date: 2026-11-08.
+
+### Finding
+
+- parmana-core's `GatewayExternalAdapter` signs `connectorId` as `ext-<capability>`, for example `ext-razorpay:refund`. Its external connector identity module names the same format as public.
+- The connectors service checked `connectorId` against the vendor name (`razorpay`), the change made under F28-1 (PR #49). Every release Core signed for `razorpay:refund` would therefore have been refused with HTTP 403. The signature was valid in both repositories: this was a protocol identity mismatch, not a cryptographic failure.
+- The regression was introduced by the F28-1 fix, which is merged and deployed to production. Whether any live Core release has already been refused has not been checked.
+
+### Fix (long-term)
+
+- The rule lives in one module, `src/service/connector-identity.ts`. The expected identity is derived from the release's own capability, `ext-` followed by the capability, and must match exactly. A release naming the bare vendor name, or another capability's identity, is refused.
+- The service no longer passes its vendor name to the release check. Tests cover the derived identity, a foreign identity and the bare vendor name. Typecheck, build and the full suite pass (211 tests, 8 skipped).
+- Branch `fix/external-connector-identity` in `parmana-connectors`, commit `24aebb5`. The PR is not yet open, and the fix takes effect only once it is merged and redeployed.
+
+### Still open
+
+- **F28-6, `parmana-connect` release path.** Its signed-release path calls the connector with `capability` and `parameters` only. It omits `target` and `businessTransactionId`, so the Razorpay adapter refuses those releases. Its release check also does not verify `connectorId`. Found by reading both repositories; not yet fixed.
+- **F28-4, target binding (Update 33).** Still open, with no fix branch.
+- **F26-5 and F26-8 (Paytm).** Still blocked on Paytm's documentation.
+- **Integration test.** No end-to-end test yet sends a Core-signed release through the connectors service and verifies the resulting record. The Core-to-Connectors contract is protected only by unit tests on each side.
+
+### Lesson
+
+A fix that tightens an identity check must be checked against the other side's actual output, not only against this repository's tests. The F28-1 tests used a hand-written release, so they could not show the mismatch.
