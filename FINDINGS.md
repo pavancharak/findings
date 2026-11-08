@@ -775,3 +775,36 @@ Documented here as one issue, because the two findings depend on each other.
 
 - Open: the Paytm issue above; F26-6 (Zoho has no connector-level duplicate check) and F26-7 (Zerodha paper orders are not guarded), both design notes; the F28 target-binding check across the adapters; and the production scheduled archive task, which runs only on the operator's PC.
 - The rotated database password is recorded in Update 31. The production connection string is not recorded anywhere in the repository or in this file.
+
+## Update 33: target binding across the parmana-connectors adapters (F28-4)
+
+Date: 2026-11-08. Checked against `parmana-connectors` `origin/main` (`f1a4fcf`, after PR #50). Source only; read-only.
+
+The release's signed `target` should be the object the connector acts on. Each adapter was checked for whether it reads `target`, and whether a mismatch is refused.
+
+| Connector | Write capability | Reads `target` | Binding | Assessment |
+|---|---|---|---|---|
+| Generic (`src/connector.ts`) | Any manifest write | No | None: silently ignored | Gap |
+| GitHub | `github:pr-merge` | Yes, required | Target names the pull request merged | Bound |
+| HubSpot | `hubspot:deal-update` | Yes, optional | Deal ID must equal target, when a target is present | Bound, with a conditional check |
+| Paytm | `paytm:refund` | No | Refund uses the signed `orderId` and `transactionId` parameters | Not bound to target |
+| Razorpay | `razorpay:refund` | Yes, validated | Target is the payment ID the refund is made on | Bound |
+| Slack | `slack:post-message` | Yes | Channel must equal target | Bound |
+| Zoho | `zoho:invoice-create` | No (fetch only) | Create has no target check | Not bound |
+| Zerodha | `zerodha:place-order` | No | Paper mode only | Not bound; not live |
+
+**F28-4. Target is ignored by several write adapters (medium).** The contract says the generic connector does not use `target`, and Paytm, Zoho create and Zerodha never read it either. A release whose target names one object can therefore act on another, if its parameters name that other object. The signature still covers both fields, so this is a binding gap, not a forgery. Live exposure is confined to the generic connector and Paytm refunds. Zerodha is paper-only, and Zoho create does not act on an existing object.
+
+**Conditional checks.** HubSpot compares the deal ID with the target only when a target is present. The release shape requires `target`, so the condition is normally met, but the check should not depend on that.
+
+### Fix
+
+1. Require every write capability to declare how its target binds: the object it acts on, or an explicit "no target" rule.
+2. Refuse a write capability whose target is not bound, rather than ignoring it. This applies to the generic connector and to Paytm refunds. Paytm should compare the release target with its `transactionId`, since that is the object refunded.
+3. Make HubSpot's check unconditional.
+4. Before any live Zoho create or Zerodha order, bind their targets in the same way.
+
+### Status
+
+- F28-4 is open. No fix branch exists yet.
+- Fix 1 and fix 2 should come before any further live Paytm or generic-connector use.
