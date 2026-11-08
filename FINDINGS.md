@@ -570,3 +570,50 @@ Date: 2026-11-07.
 - `security/overview.mdx` still describes the `sdk-v1.6.3` release provenance. That is accurate for 1.6.3, but nothing yet covers 2.0.0.
 - `@parmana/connector-sdk` on npm is 1.6.3 while the other packages are 2.0.0. Decide whether to publish it at 2.0.0.
 - The findings from Update 24 (F8 to F11) are unchanged.
+
+## Update 26: parmana-connect and parmana-connectors source review
+
+Date: 2026-11-08. Checked against `parmana-connect` `origin/main` (`07d53db`) and `parmana-connectors` `origin/main` (`da72f04`). Source and tests only; no live provider accounts were used.
+
+### parmana-connect: external report checked
+
+- **Confirmed: signed release fields are not enforced.** `runRelease` (`src/execution-service.ts`) passes only `capability` and `parameters` to the connector. `connectorId`, `target`, `approvedBy` and `conditions` are signed but never compared with local configuration or used. The signature still prevents tampering, so this is a semantic gap, not a bypass. Severity: medium.
+- **Confirmed: MCP argument checks are weaker than the connector's.** `splitArguments` (`src/mcp-tools.ts`) rejects undeclared and missing fields but not wrong types, so malformed values reach Parmana before the connector rejects them. Severity: low.
+- **Not verified:** the report's claim that migrations run separately from startup.
+
+### parmana-connectors: adapter review
+
+Checked each adapter's source against the shared contract and the release service.
+
+| Adapter | Capability | Duplicate protection | Assessment |
+|---|---|---|---|
+| Razorpay | `razorpay:refund` | Lists refunds, matches the receipt, refuses redirects, gates live keys | Careful, with two gaps (below) |
+| Paytm | `paytm:refund` | Checks status by `refId`, refuses `PENDING` | Careful, with two gaps (below) |
+| Zoho | `zoho:invoice-create` | Writes the business transaction ID as `reference_number`; no lookup before create | Relies on the service's release ledger |
+| Zerodha | `zerodha:place-order` | None; paper mode only, not registered | Safe while paper-only |
+| GitHub | `github:pr-merge` | `expectedHeadSha` refuses a merge if the head moved | Good |
+| HubSpot, Slack | update, post | Not receipt-based | Not reviewed in depth |
+
+The release service claims the release ledger before execution (`src/service/server.ts`), and it passes `target` and `businessTransactionId` through to the connector, so the adapters receive what they need.
+
+**F26-1. Razorpay reports a failed refund as done (medium).** The receipt lookup in `razorpay-connector.ts` returns the first refund with a matching receipt without checking its status. A `failed` refund under that receipt comes back as `success: true, alreadyRefunded: true`, and no new refund is created, so the action silently does not happen.
+
+**F26-2. Razorpay reports an unreadable 200 as success (low).** If the create call returns 200 with a body that isn't JSON, `call()` returns `{}` and `answer()` reports success with no refund id. Nothing tells the operator to check Razorpay.
+
+**F26-3. Paytm does not warn after an ambiguous apply (medium).** In `paytm-connector.ts`, a timeout or network error on `/refund/apply` gets the "may have reached Paytm, check before any other action" message. A non-OK response or a non-JSON body from the same call is rethrown without it, although the refund may have been applied.
+
+**F26-4. Paytm follows redirects (low).** The Razorpay connector sets `redirect: "error"`. The Paytm call does not, so the signed request would go to any redirect target. The merchant key is not sent, so the exposure is limited.
+
+**F26-5. Paytm sends a second refund on an unexpected status check (low, relies on Paytm).** Any status other than success or pending, including `UNKNOWN`, leads to a new refund with the same `refId`. That is safe only if Paytm rejects a reused `refId`, which the code does not enforce.
+
+**F26-6. Zoho has no connector-level duplicate check (design note).** Zoho has no idempotency key, and the connector does not search for an existing invoice before creating one. Protection depends entirely on the service's release ledger. Add a lookup by reference number before create, if Zoho's API supports it.
+
+**F26-7. Zerodha would duplicate paper orders on repeat (note).** The connector ignores `businessTransactionId`. Add a receipt guard before any live mode.
+
+### Status
+
+- F26-1 to F26-4 are fixed on branch `fix/connectors-ambiguous-refunds` in `parmana-connectors`, with regression tests. The full connector suite passes (205 tests, 6 live-database tests skipped). Not yet merged. F26-5 needs confirmation from Paytm's documentation before a change.
+- F26-4 and F26-5 are included in the same fix pass where they are code changes; F26-5 also needs confirmation from Paytm's documentation.
+- F26-6 and F26-7 are design notes for later.
+- The `parmana-connect` findings are for that repository's own review pass.
+- Live behaviour of all adapters is unverified. The Paytm adapter says so itself.
