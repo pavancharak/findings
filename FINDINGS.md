@@ -835,3 +835,48 @@ Date: 2026-11-08.
 ### Lesson
 
 A fix that tightens an identity check must be checked against the other side's actual output, not only against this repository's tests. The F28-1 tests used a hand-written release, so they could not show the mismatch.
+
+## Update 35: F28-5 closed in production
+
+Date: 2026-11-08.
+
+- **F28-5 closed.** The external connector identity mismatch is fixed. `parmana-connectors` PR #51 is merged to `main` as `a41d284`, and Vercel Production deployed it. The deployment shows Ready and is the current production deployment. Releases from parmana-core for `razorpay:refund` are now accepted on the identity check.
+- **Verification limit.** The identity fix was checked against the code and tests on both sides, not by sending a live Core-signed release. A live release has not been run, so the end-to-end path is not yet demonstrated.
+- **Still open:**
+  - **F28-6:** the `parmana-connect` release path omits `target` and `businessTransactionId`, so the Razorpay adapter refuses those releases.
+  - **F28-4:** target binding is not enforced by the generic connector or Paytm refunds (Update 33).
+  - **F26-5 and F26-8:** Paytm refId behaviour and endpoint paths, blocked on Paytm's documentation (Update 32).
+  - **End-to-end test:** no test yet sends a Core-signed release through the connectors service and verifies the resulting Execution Trust Record.
+
+## Update 36: F28-7 (business conditions) step 1 merged; step 2 in review
+
+Date: 2026-11-08.
+
+### F28-7: business conditions were not enforced by the connectors service
+
+parmana-core signs business conditions into an external release and describes an endpoint that checks them before acting. The connectors service did not check them, and ignored them. The finding is about missing enforcement, not a signature bypass.
+
+- **Step 1, merged (PR #52, `main` at `1550f56`).** A release that carries a non-empty condition list is refused before it is claimed, because the service has no evaluator for the condition. A refused release is not recorded, so it can be sent again. An empty list is accepted, and a malformed list is refused.
+- **Step 2, in review (PR #54, `feat/condition-evaluators`).** Each signal key gets one evaluator, which checks the fact against the system that owns it. Covered conditions are checked after the claim and before the connector is called. A condition that does not hold is answered with `success: false` and `conditionsNotMet: true`, and the connector is not called. A failing evaluator is answered with `success: false` and no `conditionsNotMet`, so it is not reported as not met. Both answers are stored. Successful answers list the checked conditions and whether each check is `atomic` or `check-then-act`.
+- **No evaluator is registered yet.** Production behaviour is unchanged until one is, and the first, for `razorpay:refund`, is a separate change.
+- **Production state.** Core's production database has no external connector registrations, no stored policies and no business signal sources (all three tables have 0 rows). Core therefore cannot currently produce a release with conditions. The repository's policies declare no signals either. This is a snapshot, not a guarantee for the future.
+- **Process note.** PR #53 was opened against #52's branch, so it merged into that branch and not into `main`. PR #54 replaces it with the diff against `main`.
+
+### Still open
+
+- **F28-6, `parmana-connect` release path.** Its signed-release path passes only `capability` and `parameters` to the connector, so the Razorpay adapter refuses releases that need `target` and the transaction ID. Its release check does not verify `connectorId`.
+- **F28-4, target binding (Update 33).** The generic connector and Paytm refunds do not check the signed target. No fix branch yet.
+- **F26-5 and F26-8, Paytm (Update 32).** The refId behaviour and the endpoint paths are still unverified, and live Paytm refunds must stay off.
+- **F26-6 and F26-7, design notes.** Zoho create has no connector-level duplicate check; Zerodha paper orders are not guarded.
+- **End-to-end test.** No test yet sends a Core-signed release through the connectors service and verifies the resulting Execution Trust Record.
+- **Razorpay evaluator.** Needed before any condition-bearing refund can run. Its check is check-then-act and must say so.
+
+## Update 37: F28-7 step 2 in review as PR #55; earlier PRs superseded
+
+Date: 2026-11-08.
+
+- **Step 1 is on `main`** (PR #52, `1550f56`, squash-merged). Releases whose conditions have no evaluator are refused before they are claimed.
+- **Step 2 is in review as PR #55** (`feat/condition-evaluators-v2`, `4f7a211`, built on current `main`). Covered conditions are checked after the claim and before the connector is called. A condition that does not hold is answered `success: false` with `conditionsNotMet: true`, and the connector is not called. A failing evaluator is answered `success: false` without `conditionsNotMet`. Both answers are stored. No evaluator is registered, so production behaviour is unchanged until one is.
+- **Superseded:** PR #53 merged into PR #52's branch, not `main`, so its code was not on `main`. PR #54 conflicted, because #52 was squash-merged and the stacked branch no longer matched `main`. PR #54 is closed.
+- **Process lesson:** when a PR is stacked on another branch, merge the base first and retarget before merging the stacked PR. A squash merge of the base makes the stacked branch conflict with `main`.
+- **Still open:** F28-6 (`parmana-connect` release path), F28-4 (target binding), F26-5 and F26-8 (Paytm), F26-6 and F26-7 (design notes), the end-to-end test, and the first evaluator (`razorpay:refund`).
