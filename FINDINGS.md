@@ -486,3 +486,10 @@ Scope: the two open items in parmana-core on top of PR #503 (`feat/external-cond
 - Confirm the `main` CI run for `3bbd4c9` finishes green.
 - Full Trust Record test in the runtime package (not started).
 - The example endpoint does not yet send `conditionsChecked`.
+
+## Update 22: CI on main, in progress
+
+- CI run 42439915023 (merge commit `3bbd4c9` on `main`), job `build-and-test`: passed Install, Build, Configuration doctor, Lint, Typecheck, Format and Guard against retired terminology. Test step **in progress** at 02:47 UTC.
+- Job `verify-policy-approvals` and job `python-reference-drift`: both **success**.
+- Still pending: the Test step (which includes the v3 fixture test on Node 24), replay integration, and policy approval log steps.
+- Findings PR: #17 (`claude/sweet-clarke-3nsvst` into `main`).
