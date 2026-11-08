@@ -473,3 +473,16 @@ Scope: the two open items in parmana-core on top of PR #503 (`feat/external-cond
 - Commits on the merged branch, each with the author's sign-off: `2177f4d` (steps 3 and 4), `d24ff7a` (credential-shaped evidence key names), `563161a` (end-to-end test that a failed condition stops the refund).
 - Update 19 described these as unpushed and unmerged. That status is now superseded by this update.
 - Not yet verified: the Node 24 CI result for the v3 fixture test on the merged branch.
+
+## Update 21: CI results for F28-7 steps 3 to 5
+
+- CI on the PR head `563161a` (parmana-core run 42439658962): **success**. This covers the step 5 test and the Node 24 run of the v3 fixture test that failed on the sandbox's Node 22.
+- CI on the three PR commits: `2177f4d` (run 42438179324), `d24ff7a` (run 42439163084): both **success**.
+- CI on the merge commit on `main` (`3bbd4c9`, run 42439915023): **in progress** when checked. Not yet confirmed.
+- Resolved from Update 20: the v3 fixture test's Node 24 result is now known (passes in CI).
+
+### Still open
+
+- Confirm the `main` CI run for `3bbd4c9` finishes green.
+- Full Trust Record test in the runtime package (not started).
+- The example endpoint does not yet send `conditionsChecked`.
