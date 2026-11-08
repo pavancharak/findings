@@ -929,3 +929,22 @@ Date: 2026-11-08.
   - Step 4 in parmana-core: bind the condition evidence into the signed Trust Record.
   - Step 5: a test that runs a Core-signed release through the connectors service and checks the evidence in the Trust Record.
   - F28-6 (`parmana-connect` release path), F28-4 (target binding in the generic connector and Paytm refunds), F26-5 and F26-8 (Paytm refId behaviour and endpoint paths), and F26-6 and F26-7 (design notes).
+
+## Update 42: condition evidence across the boundary (F28-7, steps 3 and 4)
+
+Date: 2026-11-08.
+
+### State
+
+- **Production wiring on `main`.** `parmana-connectors` PR #57 is merged. The Razorpay `payment.refundable` evaluator is registered in `src/main.ts` and `api/execute.ts`, so a `razorpay:refund` release with that condition is checked against Razorpay before the refund.
+- **Evidence on both outcomes.** `parmana-connectors` PR #58 keeps each condition's outcome, evidence and atomicity, including the failing condition on a not-met or unverifiable answer. Open.
+- **Step 3, parmana-core (ready, not yet pushed).** `GatewayExternalAdapter.acceptAnswer()` validates the endpoint's `conditionsChecked` list and keeps it in the response metadata. Each entry's `signalKey`, `atomicity` and `outcome` must be a defined value, and `evidence` must be a flat object of plain values within 2 KB. Any invalid entry refuses the answer. The adapter tests pass (58), and the full `execution-gateway` suite passes (214 tests, 9 skipped).
+- **Step 4, parmana-core (ready, not yet pushed).** Verified, not changed: the validated evidence already travels with the response metadata into the connector evidence, which is hashed and carried into the execution evidence that the Trust Record anchors. A test now checks that the evidence is carried verbatim and that changing it changes the hash. Related tests pass (69).
+- **Branch.** Steps 3 and 4 go on `feat/external-conditions-evidence-record`, built from current `main`. An older local branch with the same stem existed and was not used.
+
+### Still open
+
+- **Push and PR for parmana-core steps 3 and 4.**
+- **Step 5:** an end-to-end test that builds a full Trust Record from a Core-signed release, verifies it, and checks that a failed condition stops the refund.
+- **Evidence key names.** Redaction checks only top-level metadata keys. A nested key such as `apiToken` inside `evidence` is not redacted. Evidence values are plain, but key names should be checked too.
+- **F28-6** (`parmana-connect` release path), **F28-4** (target binding in the generic connector and Paytm refunds), **F26-5 and F26-8** (Paytm refId behaviour and endpoint paths), and **F26-6 and F26-7** (design notes).
