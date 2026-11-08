@@ -888,3 +888,19 @@ Date: 2026-11-08.
 - **F28-7 step 2 is on `main`.** `parmana-connectors` PR #55 (`feat/condition-evaluators-v2`, `4f7a211`) is merged. Covered conditions are checked after the claim and before the connector is called. A condition that does not hold is answered `success: false` with `conditionsNotMet: true`, and the connector is not called. No evaluator is registered yet, so production behaviour is unchanged.
 - **Status correction.** Update 37 described step 2 as in review. It is merged. Findings PR #11, which carried Update 37, is merged as well.
 - **Still open:** the first evaluator (`razorpay:refund`), F28-6 (`parmana-connect` release path), F28-4 (target binding), F26-5 and F26-8 (Paytm), F26-6 and F26-7 (design notes), and the end-to-end test.
+
+## Update 39: first condition evaluator drafted (F28-7, step 2)
+
+Date: 2026-11-08.
+
+- **Draft in review as `parmana-connectors` PR #56** (`feat/razorpay-refundable-evaluator`, `da88845`). A `payment.refundable` evaluator for `razorpay:refund` reads the payment from Razorpay immediately before the refund and checks that it is `captured` and that the unrefunded amount covers the request. It reads the payment itself and does not trust the release.
+- **Evidence.** The verdict can carry evidence (status, amount, amount refunded, refund status, requested amount, observation time), which is stored with the answer.
+- **Failure to verify.** A payment that cannot be read, or a response without the fields the check needs, is a failure to verify, not a condition that does not hold.
+- **Atomicity.** `check-then-act`. Razorpay cannot make the refund conditional on the payment state, so a change between the read and the refund is not caught. The answer states this window.
+- **Not registered.** The evaluator is not registered at startup, so production behaviour is unchanged. Registration is a separate change.
+- **Boundary.** The evaluator lives in the service folder, because the connector folder may import only the connector contract. A boundary test caught the first placement.
+
+### Still open
+
+- Register the Razorpay evaluator at startup, after PR #56 is merged.
+- F28-6 (`parmana-connect` release path), F28-4 (target binding), F26-5 and F26-8 (Paytm), F26-6 and F26-7 (design notes), and the end-to-end test.
