@@ -749,3 +749,29 @@ Date: 2026-11-08.
 ### Status
 
 - Open: PR #50 (build fix), the F26-5 and F26-8 Paytm questions, F26-6 and F26-7 design notes, the F28 target-binding check across adapters, and the scheduled task's dependence on this PC.
+
+## Update 32: all open PRs merged; Paytm issue documented as one open item
+
+Date: 2026-11-08.
+
+### Merged
+
+- `parmana-connectors`: PR #48 (F26-1 to F26-4, Razorpay and Paytm refund handling), PR #49 (F28-1 to F28-3, release connector identity, ledger archive, setting rename), PR #50 (`@types/node` moved to dependencies, fixing the Vercel build's TS2688 errors).
+- `findings`: PR #5, PR #6 and PR #7 (Updates 23 to 32 recorded across them).
+
+No PR in either repository is open after this update.
+
+### Paytm issue (open): F26-5 and F26-8
+
+Documented here as one issue, because the two findings depend on each other.
+
+- **What the connector assumes.** A refund is sent with `refId` set to the release's `businessTransactionId` (or `refundReference`). Before sending, the connector checks the refId's status. A confirmed status returns the earlier refund. A `PENDING` status is refused. Any other status, including `UNKNOWN`, leads to a new refund with the same refId.
+- **What is unverified.** (1) That Paytm rejects a second refund with a refId it has already used (F26-5). The only source is a search snippet citing code 701; neither Paytm page checked contains it. (2) That the connector's apply and status paths match Paytm's documentation (F26-8). The main refund page gives `https://securegw-stage.paytmpayments.in/refund/apply`, the sync page gives `https://securestage.paytmpayments.com/refund/api/v1/refund/apply`, and the connector uses `https://securestage.paytmpayments.com/refund/apply`. No status path matching `/v2/refund/status` appears on either page.
+- **Risk.** If Paytm does not reject a reused refId, a retry after an unknown status could issue a second refund. If the paths are wrong, every refund fails with a not-found response. Neither has happened: no live Paytm refund has been sent.
+- **Current state.** Live Paytm refunds must stay off. The connector's tests use a fake Paytm, so they cannot catch either problem.
+- **To close.** Obtain Paytm's written refund behaviour, from merchant documentation or Paytm support, covering: the apply and status endpoints for staging and production; the response to a reused refId, with its code and status; and what the status endpoint returns for an unknown refId. Then change the connector so an unknown or unparseable status is refused rather than followed by a send, unless Paytm confirms reused refIds are rejected. Add tests against the confirmed paths and responses.
+
+### Status
+
+- Open: the Paytm issue above; F26-6 (Zoho has no connector-level duplicate check) and F26-7 (Zerodha paper orders are not guarded), both design notes; the F28 target-binding check across the adapters; and the production scheduled archive task, which runs only on the operator's PC.
+- The rotated database password is recorded in Update 31. The production connection string is not recorded anywhere in the repository or in this file.
