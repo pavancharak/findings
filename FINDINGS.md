@@ -617,3 +617,25 @@ The release service claims the release ledger before execution (`src/service/ser
 - F26-6 and F26-7 are design notes for later.
 - The `parmana-connect` findings are for that repository's own review pass.
 - Live behaviour of all adapters is unverified. The Paytm adapter says so itself.
+
+## Update 27: Paytm endpoints checked against Paytm's documentation (F26-5, F26-8)
+
+Date: 2026-11-08. Checked against two pages on Paytm's public documentation, saved and searched from the operator's machine: `paytmpayments.com/docs/api/refund-api/` and `paytmpayments.com/docs/api/refund-api-sync`. Source only; no Paytm account was used.
+
+### Findings
+
+**F26-8. The Paytm connector's endpoint paths do not match Paytm's documentation (high before any live use).**
+- Staging apply, refund-api page: `https://securegw-stage.paytmpayments.in/refund/apply`.
+- Staging apply, sync page: `https://securestage.paytmpayments.com/refund/api/v1/refund/apply`.
+- `paytm-connector.ts` uses `https://securestage.paytmpayments.com` with path `/refund/apply`. The host matches the sync page; the path does not. If the sync page is right, every refund returns 404. Nothing is refunded in that case, so it fails safe, but the connector cannot work.
+- The two Paytm pages disagree with each other, so the correct host and path need confirmation from Paytm.
+- The connector's status path, `/v2/refund/status`, does not appear on either page. It is unverified.
+- The connector's tests use a fake fetch, so they never check paths against the docs. They passed with the wrong paths.
+
+**F26-5. A reused refId is rejected by Paytm: not confirmed.** A search snippet said a duplicate refId returns code 701 ("Refund Already Raised with Same REFID"). Neither page contains "701", "duplicate", or "already". The claim stays unconfirmed. The connector's protection against a second refund depends on it, so it must be checked before live use.
+
+### Status
+
+- F26-5 and F26-8 are open. Do not enable live Paytm refunds until the endpoint paths and the duplicate-refId behaviour are confirmed by Paytm's merchant documentation or support.
+- The F26-1 to F26-4 fixes are on `fix/connectors-ambiguous-refunds` in `parmana-connectors`. They do not change the paths.
+- Next: confirm the apply and status paths and the duplicate-refId response with Paytm; then correct the connector and add a test that checks each path against the documented one.
