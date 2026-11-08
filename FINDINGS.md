@@ -639,3 +639,38 @@ Date: 2026-11-08. Checked against two pages on Paytm's public documentation, sav
 - F26-5 and F26-8 are open. Do not enable live Paytm refunds until the endpoint paths and the duplicate-refId behaviour are confirmed by Paytm's merchant documentation or support.
 - The F26-1 to F26-4 fixes are on `fix/connectors-ambiguous-refunds` in `parmana-connectors`. They do not change the paths.
 - Next: confirm the apply and status paths and the duplicate-refId response with Paytm; then correct the connector and add a test that checks each path against the documented one.
+
+## F26-5: whether Paytm rejects a reused refId (open, unconfirmed)
+
+Recorded: 2026-11-08. Status: open. Severity: medium until confirmed, because a wrong assumption here could allow a second refund.
+
+### What the connector assumes
+
+`paytm-connector.ts` sends each refund with `refId` set to the caller's `refundReference`, or else to the release's `businessTransactionId`. Before sending, it checks the refId's status:
+
+- A confirmed status returns the earlier refund and sends nothing.
+- A `PENDING` status is refused and not sent again.
+- Any other status, including `UNKNOWN`, leads to a new refund with the same refId.
+
+The last branch is safe only if Paytm refuses a second refund with a refId it has already used. The connector does not enforce that.
+
+### What was checked
+
+- A search snippet of Paytm's refund documentation said a duplicate refId is rejected with code 701 ("Refund Already Raised with Same REFID") and status `TXN_FAILURE`.
+- The snippet was not confirmed on the page. `paytmpayments.com/docs/api/refund-api/` and `paytmpayments.com/docs/api/refund-api-sync` (saved and searched 2026-11-08) contain neither "701", "duplicate", nor "already".
+- Neither page documents a status endpoint matching the connector's `/v2/refund/status`. See F26-8.
+
+### Why it stays open
+
+- The snippet's code and wording have no confirmed source.
+- The status check is itself unverified (F26-8), so the connector cannot yet rely on the status it reads.
+- The connector's tests use a fake Paytm, so no test covers what Paytm does with a reused refId.
+
+### To close
+
+1. Obtain Paytm's written behaviour for a refund sent with an existing refId: the response, its code and its status, from Paytm's merchant documentation or support.
+2. Confirm the status endpoint, its path, and what it returns for an unknown refId.
+3. Change the connector so that an unknown or unparseable status is refused rather than followed by a send, unless Paytm's written behaviour says a reused refId is rejected.
+4. Add a test for the confirmed response.
+
+Until steps 1 and 2 are done, do not enable live Paytm refunds.
