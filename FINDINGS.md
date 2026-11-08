@@ -466,3 +466,10 @@ Scope: the two open items in parmana-core on top of PR #503 (`feat/external-cond
 - Confirm the v3 fixture test passes on Node 24 on the user's machine.
 - Full Trust Record test in the runtime package.
 - The example endpoint does not yet send `conditionsChecked`.
+
+## Update 20: F28-7 steps 3 to 5 merged
+
+- parmana-core PR #503 (`feat/external-conditions-evidence-record`) merged 2026-11-08 02:46 UTC. Head `563161a`.
+- Commits on the merged branch, each with the author's sign-off: `2177f4d` (steps 3 and 4), `d24ff7a` (credential-shaped evidence key names), `563161a` (end-to-end test that a failed condition stops the refund).
+- Update 19 described these as unpushed and unmerged. That status is now superseded by this update.
+- Not yet verified: the Node 24 CI result for the v3 fixture test on the merged branch.
