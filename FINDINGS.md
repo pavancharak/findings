@@ -835,3 +835,15 @@ Date: 2026-11-08.
 ### Lesson
 
 A fix that tightens an identity check must be checked against the other side's actual output, not only against this repository's tests. The F28-1 tests used a hand-written release, so they could not show the mismatch.
+
+## Update 35: F28-5 closed in production
+
+Date: 2026-11-08.
+
+- **F28-5 closed.** The external connector identity mismatch is fixed. `parmana-connectors` PR #51 is merged to `main` as `a41d284`, and Vercel Production deployed it. The deployment shows Ready and is the current production deployment. Releases from parmana-core for `razorpay:refund` are now accepted on the identity check.
+- **Verification limit.** The identity fix was checked against the code and tests on both sides, not by sending a live Core-signed release. A live release has not been run, so the end-to-end path is not yet demonstrated.
+- **Still open:**
+  - **F28-6:** the `parmana-connect` release path omits `target` and `businessTransactionId`, so the Razorpay adapter refuses those releases.
+  - **F28-4:** target binding is not enforced by the generic connector or Paytm refunds (Update 33).
+  - **F26-5 and F26-8:** Paytm refId behaviour and endpoint paths, blocked on Paytm's documentation (Update 32).
+  - **End-to-end test:** no test yet sends a Core-signed release through the connectors service and verifies the resulting Execution Trust Record.
