@@ -540,3 +540,102 @@ The `llms` test compared committed output with a fresh generation from the same 
 - No runbook yet documents the post-publish step.
 - Findings F8 to F11 are unchanged (see FINAL-REPORT.md).
 - The stop hook's uncommitted-changes reports came from sandbox copies, not the repositories.
+
+## Update 25: SDK and verifier 2.0.0 published; docs updated
+
+Date: 2026-11-07.
+
+### Published
+
+- `@parmana/sdk` 2.0.0 on npm and `parmana` 2.0.0 on PyPI (the TypeScript and Python SDKs).
+- `@parmana/verifier` 2.0.0 on npm and `parmana-verifier` 2.0.0 on PyPI.
+- `parmana-connector-sdk` 2.0.0 on PyPI.
+- Not published: `@parmana/connector-sdk` on npm, which is still 1.6.3.
+
+### Recording the published versions
+
+- `npm run record:published-sdk` refused 2.0.0 on Windows even after npm had it. The check ran `npm` through `execFileSync`, which cannot start `npm.cmd` on Windows, so every version looked unpublished. The fix runs the same `npm view` command through a shell. The version strings are validated before use. Tested on Linux: 2.0.0 accepted, 2.0.1 refused.
+- The SDK install table in `choose-your-path.mdx` and the generated `llms.txt` and `llms-full.txt` now name 2.0.0.
+
+### Docs updated for 2.0.0
+
+- `sdks/typescript.mdx` and `sdks/python.mdx`: the current-version statements now describe 2.0.0. The offline verifier verifies hybrid records in full, including the schema version 3 whole-record message, and reports `coverage` and `hybridSignaturesValid`. ML-DSA-65 needs Node 24 with OpenSSL 3.5, or `cryptography` 47.0.0 in Python. Python execution models accept an optional `evaluation_method`.
+- `build-book/overview.mdx`: the published SDK versions.
+- `verification/offline-verifier.mdx`: the standalone verifier is 2.0.0. It is a breaking release: schema version 2 records, and records with no `schemaVersion`, are refused unless `allowLegacyV2` is set.
+- The SDK code claim "changes no SDK code" is removed for 2.0.0, because the offline verifier changed in both SDKs. It stays accurate for 1.6.3.
+
+### Open
+
+- No `verifier-v2.0.0` or `sdk-v2.0.0` release tag exists yet. The 1.6.3 pages cited tags for provenance.
+- `security/overview.mdx` still describes the `sdk-v1.6.3` release provenance. That is accurate for 1.6.3, but nothing yet covers 2.0.0.
+- `@parmana/connector-sdk` on npm is 1.6.3 while the other packages are 2.0.0. Decide whether to publish it at 2.0.0.
+- The findings from Update 24 (F8 to F11) are unchanged.
+
+## Update 26: parmana-connect and parmana-connectors source review
+
+Date: 2026-11-08. Checked against `parmana-connect` `origin/main` (`07d53db`) and `parmana-connectors` `origin/main` (`da72f04`). Source and tests only; no live provider accounts were used.
+
+### parmana-connect: external report checked
+
+- **Confirmed: signed release fields are not enforced.** `runRelease` (`src/execution-service.ts`) passes only `capability` and `parameters` to the connector. `connectorId`, `target`, `approvedBy` and `conditions` are signed but never compared with local configuration or used. The signature still prevents tampering, so this is a semantic gap, not a bypass. Severity: medium.
+- **Confirmed: MCP argument checks are weaker than the connector's.** `splitArguments` (`src/mcp-tools.ts`) rejects undeclared and missing fields but not wrong types, so malformed values reach Parmana before the connector rejects them. Severity: low.
+- **Not verified:** the report's claim that migrations run separately from startup.
+
+### parmana-connectors: adapter review
+
+Checked each adapter's source against the shared contract and the release service.
+
+| Adapter | Capability | Duplicate protection | Assessment |
+|---|---|---|---|
+| Razorpay | `razorpay:refund` | Lists refunds, matches the receipt, refuses redirects, gates live keys | Careful, with two gaps (below) |
+| Paytm | `paytm:refund` | Checks status by `refId`, refuses `PENDING` | Careful, with two gaps (below) |
+| Zoho | `zoho:invoice-create` | Writes the business transaction ID as `reference_number`; no lookup before create | Relies on the service's release ledger |
+| Zerodha | `zerodha:place-order` | None; paper mode only, not registered | Safe while paper-only |
+| GitHub | `github:pr-merge` | `expectedHeadSha` refuses a merge if the head moved | Good |
+| HubSpot, Slack | update, post | Not receipt-based | Not reviewed in depth |
+
+The release service claims the release ledger before execution (`src/service/server.ts`), and it passes `target` and `businessTransactionId` through to the connector, so the adapters receive what they need.
+
+**F26-1. Razorpay reports a failed refund as done (medium).** The receipt lookup in `razorpay-connector.ts` returns the first refund with a matching receipt without checking its status. A `failed` refund under that receipt comes back as `success: true, alreadyRefunded: true`, and no new refund is created, so the action silently does not happen.
+
+**F26-2. Razorpay reports an unreadable 200 as success (low).** If the create call returns 200 with a body that isn't JSON, `call()` returns `{}` and `answer()` reports success with no refund id. Nothing tells the operator to check Razorpay.
+
+**F26-3. Paytm does not warn after an ambiguous apply (medium).** In `paytm-connector.ts`, a timeout or network error on `/refund/apply` gets the "may have reached Paytm, check before any other action" message. A non-OK response or a non-JSON body from the same call is rethrown without it, although the refund may have been applied.
+
+**F26-4. Paytm follows redirects (low).** The Razorpay connector sets `redirect: "error"`. The Paytm call does not, so the signed request would go to any redirect target. The merchant key is not sent, so the exposure is limited.
+
+**F26-5. Paytm sends a second refund on an unexpected status check (low, relies on Paytm).** Any status other than success or pending, including `UNKNOWN`, leads to a new refund with the same `refId`. That is safe only if Paytm rejects a reused `refId`, which the code does not enforce.
+
+**F26-6. Zoho has no connector-level duplicate check (design note).** Zoho has no idempotency key, and the connector does not search for an existing invoice before creating one. Protection depends entirely on the service's release ledger. Add a lookup by reference number before create, if Zoho's API supports it.
+
+**F26-7. Zerodha would duplicate paper orders on repeat (note).** The connector ignores `businessTransactionId`. Add a receipt guard before any live mode.
+
+### Status
+
+- F26-1 to F26-4 are fixed on branch `fix/connectors-ambiguous-refunds` in `parmana-connectors`, with regression tests. The full connector suite passes (205 tests, 6 live-database tests skipped). Not yet merged. F26-5 needs confirmation from Paytm's documentation before a change.
+- F26-4 and F26-5 are included in the same fix pass where they are code changes; F26-5 also needs confirmation from Paytm's documentation.
+- F26-6 and F26-7 are design notes for later.
+- The `parmana-connect` findings are for that repository's own review pass.
+- Live behaviour of all adapters is unverified. The Paytm adapter says so itself.
+
+## Update 27: Paytm endpoints checked against Paytm's documentation (F26-5, F26-8)
+
+Date: 2026-11-08. Checked against two pages on Paytm's public documentation, saved and searched from the operator's machine: `paytmpayments.com/docs/api/refund-api/` and `paytmpayments.com/docs/api/refund-api-sync`. Source only; no Paytm account was used.
+
+### Findings
+
+**F26-8. The Paytm connector's endpoint paths do not match Paytm's documentation (high before any live use).**
+- Staging apply, refund-api page: `https://securegw-stage.paytmpayments.in/refund/apply`.
+- Staging apply, sync page: `https://securestage.paytmpayments.com/refund/api/v1/refund/apply`.
+- `paytm-connector.ts` uses `https://securestage.paytmpayments.com` with path `/refund/apply`. The host matches the sync page; the path does not. If the sync page is right, every refund returns 404. Nothing is refunded in that case, so it fails safe, but the connector cannot work.
+- The two Paytm pages disagree with each other, so the correct host and path need confirmation from Paytm.
+- The connector's status path, `/v2/refund/status`, does not appear on either page. It is unverified.
+- The connector's tests use a fake fetch, so they never check paths against the docs. They passed with the wrong paths.
+
+**F26-5. A reused refId is rejected by Paytm: not confirmed.** A search snippet said a duplicate refId returns code 701 ("Refund Already Raised with Same REFID"). Neither page contains "701", "duplicate", or "already". The claim stays unconfirmed. The connector's protection against a second refund depends on it, so it must be checked before live use.
+
+### Status
+
+- F26-5 and F26-8 are open. Do not enable live Paytm refunds until the endpoint paths and the duplicate-refId behaviour are confirmed by Paytm's merchant documentation or support.
+- The F26-1 to F26-4 fixes are on `fix/connectors-ambiguous-refunds` in `parmana-connectors`. They do not change the paths.
+- Next: confirm the apply and status paths and the duplicate-refId response with Paytm; then correct the connector and add a test that checks each path against the documented one.
