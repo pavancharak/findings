@@ -870,3 +870,13 @@ parmana-core signs business conditions into an external release and describes an
 - **F26-6 and F26-7, design notes.** Zoho create has no connector-level duplicate check; Zerodha paper orders are not guarded.
 - **End-to-end test.** No test yet sends a Core-signed release through the connectors service and verifies the resulting Execution Trust Record.
 - **Razorpay evaluator.** Needed before any condition-bearing refund can run. Its check is check-then-act and must say so.
+
+## Update 37: F28-7 step 2 in review as PR #55; earlier PRs superseded
+
+Date: 2026-11-08.
+
+- **Step 1 is on `main`** (PR #52, `1550f56`, squash-merged). Releases whose conditions have no evaluator are refused before they are claimed.
+- **Step 2 is in review as PR #55** (`feat/condition-evaluators-v2`, `4f7a211`, built on current `main`). Covered conditions are checked after the claim and before the connector is called. A condition that does not hold is answered `success: false` with `conditionsNotMet: true`, and the connector is not called. A failing evaluator is answered `success: false` without `conditionsNotMet`. Both answers are stored. No evaluator is registered, so production behaviour is unchanged until one is.
+- **Superseded:** PR #53 merged into PR #52's branch, not `main`, so its code was not on `main`. PR #54 conflicted, because #52 was squash-merged and the stacked branch no longer matched `main`. PR #54 is closed.
+- **Process lesson:** when a PR is stacked on another branch, merge the base first and retarget before merging the stacked PR. A squash merge of the base makes the stacked branch conflict with `main`.
+- **Still open:** F28-6 (`parmana-connect` release path), F28-4 (target binding), F26-5 and F26-8 (Paytm), F26-6 and F26-7 (design notes), the end-to-end test, and the first evaluator (`razorpay:refund`).
