@@ -694,3 +694,21 @@ Date: 2026-11-08. Checked against `parmana-connectors` `origin/main` (`888b782`,
 
 - F28-1 to F28-3 are open. None has a fix branch yet.
 - F28-1 should be fixed before any multi-connector deployment, because a release signed for one connector would otherwise run on another.
+
+## Update 29: parmana-connectors release path fixed (F28-1 to F28-3); connector fixes merged
+
+Date: 2026-11-08.
+
+### Fixed
+
+- **F28-1, connector identity (fixed).** The release's signed `connectorId` must equal the connector this service runs. A release signed for another connector is refused, even when its capability is served here. Regression test added.
+- **F28-2, ledger growth and reuse (fixed).** Answered releases whose window has closed (at least 60 seconds past expiry) move to `parmana_connectors_release_ledger_archive` in one statement, by `npm run ledger:archive`. The claim checks both tables, so an archived transaction ID is never run again. Rows with no stored answer are never archived, because their outcome is unknown. Tests run against a real Postgres 16.
+- **F28-3, misleading setting (fixed).** `PARMANA_RELEASE_LEDGER` names the release ledger. `PARMANA_NONCE_STORE` is still accepted with a deprecation warning. Setting both to different values stops startup. The log event `nonce_store_memory` is now `release_ledger_memory`; alerts that match the old name need updating.
+
+### Status
+
+- Fixes for F28-1 to F28-3 are on `fix/release-ledger-permanent` in `parmana-connectors`, PR #49, not yet merged. The full suite passes with the Postgres tests enabled (218 tests).
+- Deployment: apply the new version first (it creates the archive table at startup), then schedule `npm run ledger:archive` with `PARMANA_DATABASE_URL` set. Nothing runs the archive automatically.
+- The F26-1 to F26-4 fixes (Razorpay, Paytm) were merged to `main` through PR #48.
+- Still open: F26-5 and F26-8 (Paytm reused refId and endpoint paths; see Update 27 and the F26-5 entry), and F26-6 and F26-7 (design notes).
+- F28 target binding across the adapters (report item E) remains unchecked.
