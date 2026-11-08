@@ -914,3 +914,18 @@ Date: 2026-11-08.
 - **Wiring in review.** PR #57 (`feat/razorpay-evaluator-wiring`, `6df15ea`) registers it in `src/main.ts` and `api/execute.ts` through a per-connector registry, built from the same credential the connector uses. Merging it makes the evaluator run in production. Releases without conditions are unaffected.
 - **Process note.** A commit pushed to a PR's branch after the PR is merged does not reach `main`. Check that the final commit is on `main` after merging.
 - **Still open:** F28-6 (`parmana-connect` release path), F28-4 (target binding in the generic connector and Paytm refunds), F26-5 and F26-8 (Paytm refId behaviour and endpoint paths), F26-6 and F26-7 (design notes), and the end-to-end test that sends a Core-signed release through the connectors service.
+
+## Update 41: condition evidence kept on every outcome; production wiring confirmed (F28-7)
+
+Date: 2026-11-08.
+
+- **Production wiring is on `main`.** `parmana-connectors` PR #57 (`32cd935`) registers the Razorpay `payment.refundable` evaluator in `src/main.ts` and `api/execute.ts`. Releases with a `payment.refundable` condition are checked against Razorpay before the refund. Releases without conditions are unaffected.
+- **Evidence kept on both outcomes (PR #58, `3bd193a`).** Each checked condition records its `outcome` (`holds`, `not-holding` or `unverified`), the evidence observed, and its atomicity. A not-met answer carries the failing condition and its evidence. Before this change, a failing condition's evidence was dropped and only the reason was kept.
+- **Core does not read the evidence yet.** Core's `GatewayExternalAdapter.acceptAnswer()` still reads only the result, the execution time, the not-met flag and the optional signature. `conditionsChecked` is discarded until Core reads it.
+- **Trust Record binding is not done.** Evidence does not reach the signed Trust Record until Core carries it through.
+- **Process note.** A commit pushed after its PR is merged does not reach `main`. PR #56 hit this, and PR #57 is now on `main` because it was merged after its push.
+- **Still open:**
+  - Step 3 in parmana-core: `acceptAnswer()` reads and validates `conditionsChecked`.
+  - Step 4 in parmana-core: bind the condition evidence into the signed Trust Record.
+  - Step 5: a test that runs a Core-signed release through the connectors service and checks the evidence in the Trust Record.
+  - F28-6 (`parmana-connect` release path), F28-4 (target binding in the generic connector and Paytm refunds), F26-5 and F26-8 (Paytm refId behaviour and endpoint paths), and F26-6 and F26-7 (design notes).
