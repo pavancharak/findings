@@ -880,3 +880,11 @@ Date: 2026-11-08.
 - **Superseded:** PR #53 merged into PR #52's branch, not `main`, so its code was not on `main`. PR #54 conflicted, because #52 was squash-merged and the stacked branch no longer matched `main`. PR #54 is closed.
 - **Process lesson:** when a PR is stacked on another branch, merge the base first and retarget before merging the stacked PR. A squash merge of the base makes the stacked branch conflict with `main`.
 - **Still open:** F28-6 (`parmana-connect` release path), F28-4 (target binding), F26-5 and F26-8 (Paytm), F26-6 and F26-7 (design notes), the end-to-end test, and the first evaluator (`razorpay:refund`).
+
+## Update 38: F28-7 step 2 merged; Update 37 status corrected
+
+Date: 2026-11-08.
+
+- **F28-7 step 2 is on `main`.** `parmana-connectors` PR #55 (`feat/condition-evaluators-v2`, `4f7a211`) is merged. Covered conditions are checked after the claim and before the connector is called. A condition that does not hold is answered `success: false` with `conditionsNotMet: true`, and the connector is not called. No evaluator is registered yet, so production behaviour is unchanged.
+- **Status correction.** Update 37 described step 2 as in review. It is merged. Findings PR #11, which carried Update 37, is merged as well.
+- **Still open:** the first evaluator (`razorpay:refund`), F28-6 (`parmana-connect` release path), F28-4 (target binding), F26-5 and F26-8 (Paytm), F26-6 and F26-7 (design notes), and the end-to-end test.
