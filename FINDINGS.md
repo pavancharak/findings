@@ -712,3 +712,13 @@ Date: 2026-11-08.
 - The F26-1 to F26-4 fixes (Razorpay, Paytm) were merged to `main` through PR #48.
 - Still open: F26-5 and F26-8 (Paytm reused refId and endpoint paths; see Update 27 and the F26-5 entry), and F26-6 and F26-7 (design notes).
 - F28 target binding across the adapters (report item E) remains unchecked.
+
+## Update 30: PR #49 merged (F28-1 to F28-3)
+
+Date: 2026-11-08.
+
+- `parmana-connectors` PR #49 (`fix/release-ledger-permanent`) is merged to `main`. F28-1, F28-2 and F28-3 are fixed in `main`.
+- The first CI run failed on a test in `tests/service/release.test.ts`, not on the fix. The lifetime test read the clock twice, so a millisecond boundary between the two reads failed it intermittently. The test now reads the clock once. Commit `a08f2cc`. Recorded because it is the kind of flaky test that can hide a real failure.
+- Deployment still needs two steps: apply the new version (it creates the archive table at startup), and schedule `npm run ledger:archive` with `PARMANA_DATABASE_URL` set. Nothing runs the archive automatically.
+- Update 29 said the PR was not merged yet. This update supersedes that status.
+- Still open: F26-5 and F26-8 (Paytm), F26-6 and F26-7 (design notes), and the F28 target-binding check across the adapters.
