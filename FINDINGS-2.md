@@ -135,3 +135,31 @@ Branches, with status:
 - parmana-core `external-adapter.test.ts`: the test named "records only the known fields of an answer" passes today because its answer has no `conditionsChecked`. Its name and contract no longer match once condition evidence is part of the answer. Needs a case that includes condition evidence.
 - Full Trust Record test in the runtime package.
 - The example endpoint does not send `conditionsChecked`.
+
+## Update 49: Razorpay binding and policy governance (2026-11-08)
+
+**Connectors repo (`parmana-connectors`)**
+- PR #61 (Razorpay 5xx on refund creation says a refund may exist) merged to `main` as `1eb59b5`.
+- PRs #64 and #65 merged. PR #63 has a merge conflict and is still open. PR #62 is failing `build-and-test` and `DCO`. PR #59 is on hold, as requested, and is not merged.
+
+**Core repo (`parmana-core`)**
+- Dependabot PRs #504 to #508 merged, and #509 and #510 merged. PR #511 was closed as superseded: its HubSpot removal is partly on `main`, and the one unmatched commit was a claims-only edit that `main` already reflects.
+- PR #512 (Razorpay payment signal) has a conflict resolved locally. The conflict was about signal disclosure. The branch now follows least disclosure: a signal source sees only the Intent parameters its policy declares. The branch also has the draft policy `razorpay-refund` 1.1.0.
+- A force-push replaced an unrelated 5-commit tip on `feat/razorpay-payment-signal` (`faaa064`). That tip is kept on `backup/razorpay-feat-before-restore`. Delete the backup branch once it's no longer needed.
+
+**Razorpay binding, live on production (`parmana-api-real`)**
+- Revoke of the demo `razorpay:refund` registration (`b9262dbb`) approved by `mamta-checker`. The demo endpoint was not in use.
+- Registration of `razorpay:refund` to `https://parmana-connectors.vercel.app/api/execute` (`5d397f58`) approved by `mamta-checker`. The policy is `razorpay-refund`, with `allowedParameters` set to `amount`.
+- Stale live-check policy change `cf85a4af` on `razorpay-refund` 1.0.0 rejected by `mamta-checker`.
+- Policy `razorpay-refund` 1.1.0 (`01b23fe0`) approved by `mamta-checker`. It is now the version in effect for `razorpay:refund`. It checks `paymentRefundable` from the Razorpay source and `managerApproved` for the payment and amount.
+- Production variable `POLICY_CHANGE_CHECKERS` set to `{"razorpay-refund":["mamta-checker"]}`, then redeployed. Its previous value could not be read, so it was replaced. Other policies' checker lists, if any, must be re-added by the operator.
+
+**Security**
+- The maker key and the checker key were pasted into chat during this work. Both were rotated. The step-up key file was deleted from the working folder.
+
+**Still open**
+- Register the `razorpay` signal source through maker-checker. Until then, the policy's `paymentRefundable` claim has nothing to answer it, so refunds will fail when it's asked.
+- Confirm the connectors service is serving `/api/execute`, with `PARMANA_RELEASE_AUDIENCE` set to `https://parmana-connectors.vercel.app/api/execute`.
+- Run one test-mode refund end to end before any live-money use.
+- Stale registrations and pending changes on `erp.example.com` and `livecheck` (for example `live…:create-invoice` and `livecheck:*`) are test leftovers. Clean them up separately.
+- `.vercel` and `.env.local` in `parmana-core` hold a short-lived Vercel token. Delete them when no longer needed.
