@@ -904,3 +904,13 @@ Date: 2026-11-08.
 
 - Register the Razorpay evaluator at startup, after PR #56 is merged.
 - F28-6 (`parmana-connect` release path), F28-4 (target binding), F26-5 and F26-8 (Paytm), F26-6 and F26-7 (design notes), and the end-to-end test.
+
+## Update 40: first condition evaluator on main; wiring in review (F28-7)
+
+Date: 2026-11-08.
+
+- **Evaluator on `main`.** `parmana-connectors` PR #56 (`a325527`) is merged: the `razorpay:refund` `payment.refundable` evaluator. It reads the payment from Razorpay immediately before the refund, checks that it is `captured` and that the unrefunded amount covers the request, and returns evidence.
+- **Wiring not yet on `main`.** PR #56 was merged before its wiring commit was pushed, so the production entry points still do not register the evaluator. The evaluator therefore does not run in production yet.
+- **Wiring in review.** PR #57 (`feat/razorpay-evaluator-wiring`, `6df15ea`) registers it in `src/main.ts` and `api/execute.ts` through a per-connector registry, built from the same credential the connector uses. Merging it makes the evaluator run in production. Releases without conditions are unaffected.
+- **Process note.** A commit pushed to a PR's branch after the PR is merged does not reach `main`. Check that the final commit is on `main` after merging.
+- **Still open:** F28-6 (`parmana-connect` release path), F28-4 (target binding in the generic connector and Paytm refunds), F26-5 and F26-8 (Paytm refId behaviour and endpoint paths), F26-6 and F26-7 (design notes), and the end-to-end test that sends a Core-signed release through the connectors service.
