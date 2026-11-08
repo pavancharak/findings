@@ -80,3 +80,58 @@ Scope: the two open items in parmana-core on top of PR #503 (`feat/external-cond
 - The Test step, which includes the v3 fixture test on Node 24, passed on `main`. This closes the open item from Updates 44 to 46.
 - Update 46 said the Test step was still running. That is now superseded by this update.
 - Remaining open items from Update 43: the full Trust Record test in the runtime package, and the example endpoint's `conditionsChecked` reply.
+
+## Update 48: refund payment check, design and status
+
+### Merged
+
+- parmana-core PR #503 (merged 2026-11-08 02:46 UTC, head `563161a`): steps 3 to 5 of F28-7. Evidence key names are checked, and an end-to-end test shows a failed condition stops the refund. CI on `main` passed, including the Node 24 run of the v3 fixture test.
+
+### Finding: no payment check runs in production today
+
+- `policies/customer-refund/1.2.0` binds only `refundAmount` and `managerApproved`. `refundEligible` and `fraudCheckPassed` are declared by the caller, and the policy itself says nothing checks them.
+- Nothing in parmana-core or parmana-connectors creates a `payment.refundable` condition. The connector's evaluator therefore runs only when an authorization happens to carry that condition.
+- Severity: high. A refund's eligibility is not checked against the payment. The manager approval is the only control on the amount.
+
+### Connector gap, held
+
+- parmana-connectors PR #59 (`fix/razorpay-requires-refundable-condition`): a `razorpay:refund` release is refused unless it names its `payment.refundable` condition. Commit `4cf8f20`, signed off, DCO passed.
+- **Held as a draft, title marked do not merge.** Core does not send that condition yet, so merging now would refuse every refund.
+
+### Design, approved
+
+The check runs in a separate Razorpay signal service, and parmana-core never holds the payment key. Core's business sources are HTTP endpoints that answer signed queries, registered through maker-checker.
+
+Branches, with status:
+
+- **parmana-connectors `feat/razorpay-payment-signal-service`** (`06da4d2`, unsigned). The signal service: verifies Core's signed query (signature, audience, source, 60-second lifetime, nonce), reads the payment with a read-only key, and signs its answer. A query with no refund amount is answered `not_found`, which fails closed. Configuration is required and checked at startup. 18 tests pass. Not deployed.
+- **parmana-core `feat/signal-query-parameters`** (`0a2bf64`, unsigned). A policy's `signalSources` entry can list the intent parameters a source needs. The signed query carries only those, never the whole intent. Found while designing: the signed query had no amount, so the signal service could not check one. 75 tests pass in the changed files. The full suite passes except `whole-record-v3-offline`, which fails only on the sandbox's Node 22 and needs Node 24.
+- **parmana-core `feat/razorpay-payment-signal`** (`070ac50`, signed off locally by the user). **Superseded. Do not merge.** It passes the whole intent to every source, and it holds an in-process Razorpay source that is not the production path.
+
+### Open decisions and actions
+
+1. Sign off `0a2bf64` in parmana-core, then open its PR.
+2. Sign off `06da4d2` in parmana-connectors (the DCO check needs it).
+3. Choose the secret names and set the four signal-service settings in its secret store.
+4. Read-only Razorpay key: confirm whether Razorpay offers a read-only or restricted key. If not, record that Core's key is full access.
+5. Maker-checker registration of the signal service's endpoint and public key.
+6. Customer-refund 1.3.0: declare `payment.refundable` from the signal service with `parameters: ["amount"]`, and make it required. Approval is needed before it goes live.
+7. Only after 3 to 6: merge connectors PR #59.
+8. Sequencing: Core change, signal service deployed, policy 1.3.0 approved and live, then PR #59.
+
+### Test and environment notes
+
+- Sandbox runs Node 22; the project requires Node 24.x. The `whole-record-v3-offline` failure is environmental.
+- The sandbox rebuilt `re2` for Node 22. This is an environment fix, not a repository change.
+
+### Residual risks
+
+- **Check-then-act window.** Razorpay has no conditional refund, so the payment can change between the read and the refund. Mitigation: reconcile refunds against Razorpay's refund records. Keep as a known gap.
+- **Eligibility is a fact about the payment, not the order.** The check confirms Razorpay's state, not that the refund is right. Manager approval still covers that.
+- **Replay of signal queries.** The signal service doesn't store nonces. A replayed query only re-reads the payment, so the harm is limited, but it should be noted.
+
+### Still open from earlier updates
+
+- parmana-core `external-adapter.test.ts`: the test named "records only the known fields of an answer" passes today because its answer has no `conditionsChecked`. Its name and contract no longer match once condition evidence is part of the answer. Needs a case that includes condition evidence.
+- Full Trust Record test in the runtime package.
+- The example endpoint does not send `conditionsChecked`.
