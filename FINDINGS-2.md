@@ -80,3 +80,39 @@ Scope: the two open items in parmana-core on top of PR #503 (`feat/external-cond
 - The Test step, which includes the v3 fixture test on Node 24, passed on `main`. This closes the open item from Updates 44 to 46.
 - Update 46 said the Test step was still running. That is now superseded by this update.
 - Remaining open items from Update 43: the full Trust Record test in the runtime package, and the example endpoint's `conditionsChecked` reply.
+
+## Update 49: refund payment check, progress since Update 48
+
+### Merged
+
+- **Findings PR #20** (`FINAL-REPORT-2.md`): merged 8 November 03:12 UTC. The file is on `main`.
+
+### Opened
+
+- **parmana-core PR #504** (`feat/signal-query-parameters`, head `1a0e5ab`, signed off): a policy's signal source can name the intent parameters it needs. The signed query carries only those. The Razorpay signal service needs the refund amount this way. Open; not merged.
+
+### Still open and held
+
+- **Findings PR #19** (Update 48): open.
+- **parmana-connectors PR #59** (`fix/razorpay-requires-refundable-condition`): draft, held. Do not merge until Core produces the `payment.refundable` condition in production. Its Vercel check failed on a deployment rate limit, which needs no code change.
+
+### Branch cleanup
+
+- Merged remote branches deleted: findings 3, parmana-core 11, parmana-connectors 14. Designated branches, `main`, and every branch with an open PR or unmerged work were kept.
+- Deletion from the sandbox was refused (HTTP 403), so the owner ran the deletions from a local checkout.
+
+### Signal service: Vercel
+
+- Wrapper `api/refund-payment.ts` added on `feat/razorpay-payment-signal-service` (commit `c1c28f3`, unsigned). It typechecks, and the 18 signal tests pass.
+- **Not deployed.** The Vercel CLI is not available in the sandbox. The owner deploys from a local checkout as a separate `parmana-signal` project, with the four settings, Production environment only, and preview deployments turned off.
+- Next check: an unsigned POST to the audience URL should return HTTP 403.
+
+### Local example runs (owner's machine)
+
+- Parmana examples 06 (inbound outcome) and 07 (inbound refund flow) completed. The outcome route answers 201, 409, 404, 403, 422 and 422 as designed.
+
+### Not done
+
+- Customer-refund 1.3.0 policy: not drafted, not approved, not published.
+- Maker-checker registration of the signal service: not submitted.
+- The Trust Record end-to-end test (runtime package) and the `external-adapter.test.ts` update remain open.
