@@ -108,7 +108,7 @@ Reviewed against `parmana-verifier/src/verify.mjs`:
 
 ## 7. Operational events
 
-- **Database credential exposed in chat (8 November of an earlier session, recorded in FINDINGS Update 31).** A production connection string was pasted into a conversation. The owner rotated the password. The value is not recorded in any file here and must not be.
+- **Database credential exposed in chat (earlier in this review, recorded in FINDINGS Update 31).** A production connection string was pasted into a conversation. The owner rotated the password. The value is not recorded in any file here and must not be.
 - **Deploy error.** The connectors' Vercel build failed with TS2688 because `@types/node` was a devDependency. Fixed by moving it to dependencies (PR #50).
 - **Route error.** Vercel returned NOT_FOUND on `/execute`; the route is `/api/execute`.
 - **Flaky test.** `release.test.ts` failed in CI on PR #49 because it read the clock twice. Fixed to read it once.
