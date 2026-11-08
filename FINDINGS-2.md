@@ -73,3 +73,10 @@ Scope: the two open items in parmana-core on top of PR #503 (`feat/external-cond
 - Job `verify-policy-approvals` and job `python-reference-drift`: both **success**.
 - Still pending: the Test step (which includes the v3 fixture test on Node 24), replay integration, and policy approval log steps.
 - Findings PR: #17 (`claude/sweet-clarke-3nsvst` into `main`).
+
+## Update 47: CI on main for the F28-7 merge, final result
+
+- CI run 42439915023 (merge commit `3bbd4c9` on `main`, parmana-core): **success**. All jobs passed: build-and-test (Build, Lint, Typecheck, Format, Guard against retired terminology, Test, Replay integration against a migrated database, Verify the policy approval log), verify-policy-approvals and python-reference-drift.
+- The Test step, which includes the v3 fixture test on Node 24, passed on `main`. This closes the open item from Updates 44 to 46.
+- Update 46 said the Test step was still running. That is now superseded by this update.
+- Remaining open items from Update 43: the full Trust Record test in the runtime package, and the example endpoint's `conditionsChecked` reply.
